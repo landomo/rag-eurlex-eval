@@ -77,21 +77,50 @@ def recursive_1000(sections: list[Section]) -> list[Document]:
 
 
 def semantic(sections: list[Section]) -> list[Document]:
+    """Embedding-breakpoint chunking.
+
+    The unit of comparison is the PARAGRAPH, not the sentence. LangChain's default
+    splits on sentence boundaries, which on this corpus means ~8,000 embedding calls
+    and many minutes on CPU with no output. EU regulations are drafted in numbered
+    paragraphs that already are the semantic unit, so splitting there cuts the work
+    by roughly 4x and arguably measures the right boundaries. Still structure-blind:
+    it sees paragraph breaks in flat text, not Article numbers.
+    """
+    import time
+
     from langchain_experimental.text_splitter import SemanticChunker
 
     from .providers import get_embeddings
+
+    docs_in = _flat_documents(sections)
+    units = sum(len(re.split(r"\n\s*\n", d.page_content)) for d in docs_in)
+    print(
+        f"    semantic: embedding ~{units:,} paragraph units on CPU "
+        f"(this is the slow strategy; expect a few minutes)",
+        flush=True,
+    )
 
     splitter = SemanticChunker(
         get_embeddings(),
         breakpoint_threshold_type="percentile",
         breakpoint_threshold_amount=90,
+        sentence_split_regex=r"\n\s*\n",
     )
-    docs = splitter.split_documents(_flat_documents(sections))
+
+    out: list[Document] = []
+    for i, d in enumerate(docs_in, 1):
+        t0 = time.time()
+        out.extend(splitter.split_documents([d]))
+        print(
+            f"      [{i}/{len(docs_in)}] {d.metadata.get('short_name', '?')}: "
+            f"{len(out)} chunks so far ({time.time() - t0:.0f}s)",
+            flush=True,
+        )
+
     # SemanticChunker can emit very long chunks; cap them so context windows stay
     # comparable across strategies.
     capper = RecursiveCharacterTextSplitter(chunk_size=3000, chunk_overlap=0)
-    docs = capper.split_documents(docs)
-    return _tag(docs, "semantic")
+    return _tag(capper.split_documents(out), "semantic")
 
 
 def structural_article(sections: list[Section]) -> list[Document]:
