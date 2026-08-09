@@ -1,0 +1,25 @@
+# Verified working pin set (Python 3.10-3.12).
+# Ragas 0.4.x currently breaks against langchain-community >= 0.4 (it imports
+# langchain_community.chat_models.vertexai, which was removed). Ragas 0.3.9 on the
+# langchain 0.3 line is the last combination that installs and imports cleanly.
+ragas==0.3.9
+langchain==0.3.30
+langchain-core==0.3.86
+langchain-community==0.3.31
+langchain-openai==0.3.35
+langchain-text-splitters==0.3.11
+langchain-experimental==0.3.4
+langchain-chroma==0.2.6
+chromadb==1.5.9
+rank-bm25==0.2.2
+flashrank==0.2.10
+tiktoken==0.13.0
+beautifulsoup4==4.13.6
+lxml==6.0.2
+pandas==2.3.4
+python-dotenv==1.2.1
+tenacity==9.1.2
+pyyaml==6.0.3
+tqdm==4.67.1
+tabulate==0.9.0
+pytest==8.4.2
