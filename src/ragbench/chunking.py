@@ -20,8 +20,9 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter, TokenTextSp
 
 from .ingest import Section
 
-# Splits at "1." / "2." style paragraph markers used throughout EU regulations.
-PARA_RE = re.compile(r"\n(?=\d{1,2}\.\s)")
+# EU regulations number article paragraphs "1." and recitals "(1)". Match both,
+# or the Recitals block never splits and becomes one enormous chunk.
+PARA_RE = re.compile(r"\n(?=(?:\d{1,2}\.|\(\d{1,3}\))\s)")
 
 
 def _flat_documents(sections: Iterable[Section]) -> list[Document]:
@@ -145,8 +146,17 @@ def structural_article(sections: list[Section]) -> list[Document]:
             continue
 
         parts = [p.strip() for p in PARA_RE.split(s.text) if p.strip()]
-        buf = ""
+
+        # Backstop: if a "paragraph" is still oversized (unnumbered prose, tables,
+        # an annex), split it by characters. Without this, one unmatched pattern
+        # silently produces a chunk too large for any context window.
+        expanded: list[str] = []
+        hard = RecursiveCharacterTextSplitter(chunk_size=max_chars, chunk_overlap=100)
         for part in parts:
+            expanded.extend([part] if len(part) <= max_chars else hard.split_text(part))
+
+        buf = ""
+        for part in expanded:
             if len(buf) + len(part) > max_chars and buf:
                 docs.append(Document(page_content=f"{header}\n\n{buf}", metadata=dict(base_meta)))
                 buf = part
@@ -154,6 +164,14 @@ def structural_article(sections: list[Section]) -> list[Document]:
                 buf = f"{buf}\n{part}" if buf else part
         if buf:
             docs.append(Document(page_content=f"{header}\n\n{buf}", metadata=dict(base_meta)))
+
+    oversized = [d for d in docs if len(d.page_content) > max_chars * 1.5]
+    if oversized:
+        raise AssertionError(
+            f"structural_article produced {len(oversized)} oversized chunks "
+            f"(largest {max(len(d.page_content) for d in oversized):,} chars). "
+            "This would overflow the generator context window."
+        )
     return _tag(docs, "structural_article")
 
 
