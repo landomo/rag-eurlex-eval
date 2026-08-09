@@ -11,8 +11,6 @@ from dataclasses import dataclass
 from langchain_core.documents import Document
 from langchain_core.retrievers import BaseRetriever
 
-from .config import MODELS
-
 SYSTEM_PROMPT = """You are a legal research assistant answering questions about EU regulations \
 (the EU AI Act and the GDPR).
 
@@ -49,11 +47,11 @@ class RagAnswer:
 
 
 class RagPipeline:
-    def __init__(self, retriever: BaseRetriever, model: str | None = None, temperature: float = 0.0):
-        from langchain_openai import ChatOpenAI
+    def __init__(self, retriever: BaseRetriever, llm=None, temperature: float = 0.0):
+        from .providers import get_chat_llm
 
         self.retriever = retriever
-        self.llm = ChatOpenAI(model=model or MODELS.generator, temperature=temperature)
+        self.llm = llm or get_chat_llm("generator", temperature=temperature)
 
     def retrieve(self, question: str) -> list[Document]:
         return self.retriever.invoke(question)

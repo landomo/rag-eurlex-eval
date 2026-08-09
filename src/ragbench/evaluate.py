@@ -25,7 +25,8 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from .config import MODELS, RUNS, RunSpec
+from .config import RUNS, RunSpec
+from .providers import describe
 from .pipeline import RagPipeline
 from .testset import TestItem
 
@@ -51,13 +52,16 @@ def build_metrics(judge_llm=None, judge_embeddings=None):
 
 
 def judge_components():
-    from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+    """The judge is identical across every run, so judge bias is a constant, not a confound."""
     from ragas.embeddings import LangchainEmbeddingsWrapper
     from ragas.llms import LangchainLLMWrapper
 
-    llm = LangchainLLMWrapper(ChatOpenAI(model=MODELS.judge, temperature=0.0))
-    emb = LangchainEmbeddingsWrapper(OpenAIEmbeddings(model=MODELS.embedding))
-    return llm, emb
+    from .providers import get_chat_llm, get_embeddings
+
+    return (
+        LangchainLLMWrapper(get_chat_llm("judge", temperature=0.0)),
+        LangchainEmbeddingsWrapper(get_embeddings()),
+    )
 
 
 def collect_predictions(pipeline: RagPipeline, testset: list[TestItem], verbose: bool = True) -> list[dict]:
@@ -117,7 +121,7 @@ def score(rows: list[dict], run_id: str, seconds: float | None = None) -> dict:
         "run_id": run_id,
         "n_samples": len(rows),
         "seconds": round(seconds, 1) if seconds else None,
-        "models": asdict(MODELS),
+        "models": describe(),
         "aggregate": aggregate,
         "samples": rows,
     }

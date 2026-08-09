@@ -6,6 +6,7 @@ ragas==0.3.9
 langchain==0.3.30
 langchain-core==0.3.86
 langchain-community==0.3.31
+langchain-anthropic==0.3.22
 langchain-openai==0.3.35
 langchain-text-splitters==0.3.11
 langchain-experimental==0.3.4
@@ -13,6 +14,8 @@ langchain-chroma==0.2.6
 chromadb==1.5.9
 rank-bm25==0.2.2
 flashrank==0.2.10
+# Local embeddings via ONNX Runtime - no PyTorch, reuses flashrank's runtime.
+fastembed==0.8.0
 tiktoken==0.13.0
 beautifulsoup4==4.13.6
 lxml==6.0.2

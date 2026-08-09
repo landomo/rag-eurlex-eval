@@ -22,7 +22,7 @@ import random
 import re
 from dataclasses import asdict, dataclass, field
 
-from .config import MODELS, TESTSET_PATH
+from .config import TESTSET_PATH
 from .ingest import Section, load_sections
 
 QA_SYSTEM = """You write evaluation data for a legal retrieval system. \
@@ -61,10 +61,10 @@ def _json_from(text: str) -> dict:
     return json.loads(m.group(0))
 
 
-def _llm(model: str | None = None, temperature: float = 0.0):
-    from langchain_openai import ChatOpenAI
+def _llm(temperature: float = 0.0):
+    from .providers import get_chat_llm
 
-    return ChatOpenAI(model=model or MODELS.judge, temperature=temperature)
+    return get_chat_llm("judge", temperature=temperature)
 
 
 # --------------------------------------------------------------------------- generated

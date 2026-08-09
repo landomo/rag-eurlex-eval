@@ -3,7 +3,7 @@ import argparse
 
 import _bootstrap  # noqa: F401
 
-from ragbench.config import RunSpec, default_grid, require_openai_key
+from ragbench.config import RunSpec, default_grid, require_api_key
 from ragbench.evaluate import evaluate_spec
 from ragbench.testset import load
 
@@ -14,7 +14,10 @@ if __name__ == "__main__":
     ap.add_argument("--force", action="store_true", help="ignore cached runs")
     args = ap.parse_args()
 
-    require_openai_key()
+    require_api_key()
+    from ragbench.providers import describe
+
+    print(f"providers: {describe()}")
     testset = load()
     if args.limit:
         testset = testset[: args.limit]

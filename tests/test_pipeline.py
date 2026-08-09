@@ -158,3 +158,65 @@ def test_context_formatting_numbers_and_cites():
 def test_system_prompt_mandates_abstention():
     assert "does not contain enough information" in SYSTEM_PROMPT
     assert "Never rely on prior knowledge" in SYSTEM_PROMPT
+
+
+# ------------------------------------------------------------------ providers
+
+def test_default_provider_wiring_is_anthropic_plus_local(monkeypatch):
+    """Defaults must need exactly one key. If this breaks, the README lies."""
+    import importlib
+
+    for var in ["RAGBENCH_LLM_PROVIDER", "RAGBENCH_EMBED_PROVIDER",
+                "RAGBENCH_GEN_MODEL", "RAGBENCH_JUDGE_MODEL", "RAGBENCH_EMBED_MODEL"]:
+        monkeypatch.delenv(var, raising=False)
+
+    from ragbench import config
+
+    importlib.reload(config)
+    assert config.MODELS.llm_provider == "anthropic"
+    assert config.MODELS.embed_provider == "local"
+    assert config.MODELS.generator.startswith("claude-")
+    assert config.MODELS.embedding == "BAAI/bge-small-en-v1.5"
+
+
+def test_openai_provider_selects_openai_model_defaults(monkeypatch):
+    import importlib
+
+    monkeypatch.setenv("RAGBENCH_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("RAGBENCH_EMBED_PROVIDER", "openai")
+    for var in ["RAGBENCH_GEN_MODEL", "RAGBENCH_JUDGE_MODEL", "RAGBENCH_EMBED_MODEL"]:
+        monkeypatch.delenv(var, raising=False)
+
+    from ragbench import config
+
+    importlib.reload(config)
+    assert config.MODELS.generator == "gpt-4o-mini"
+    assert config.MODELS.embedding == "text-embedding-3-small"
+    importlib.reload(config)
+
+
+def test_missing_key_fails_fast_with_a_useful_message(monkeypatch):
+    import importlib
+
+    monkeypatch.setenv("RAGBENCH_LLM_PROVIDER", "anthropic")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
+    from ragbench import config, providers
+
+    importlib.reload(config)
+    importlib.reload(providers)
+    with pytest.raises(SystemExit) as exc:
+        providers.get_chat_llm("generator")
+    assert "ANTHROPIC_API_KEY" in str(exc.value)
+
+
+def test_unknown_provider_is_rejected(monkeypatch):
+    import importlib
+
+    monkeypatch.setenv("RAGBENCH_LLM_PROVIDER", "cohere")
+    from ragbench import config, providers
+
+    importlib.reload(config)
+    importlib.reload(providers)
+    with pytest.raises(SystemExit):
+        providers.get_chat_llm("generator")

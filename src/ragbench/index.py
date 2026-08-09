@@ -12,7 +12,7 @@ from pathlib import Path
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 
-from .config import INDEXES, MODELS
+from .config import INDEXES
 from .chunking import chunk, stats
 from .ingest import Section, load_sections
 
@@ -26,9 +26,9 @@ def chunks_path(strategy: str) -> Path:
 
 
 def get_embeddings() -> Embeddings:
-    from langchain_openai import OpenAIEmbeddings
+    from .providers import get_embeddings as _get
 
-    return OpenAIEmbeddings(model=MODELS.embedding)
+    return _get()
 
 
 def save_chunks(strategy: str, docs: list[Document]) -> None:

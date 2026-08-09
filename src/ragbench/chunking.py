@@ -78,12 +78,11 @@ def recursive_1000(sections: list[Section]) -> list[Document]:
 
 def semantic(sections: list[Section]) -> list[Document]:
     from langchain_experimental.text_splitter import SemanticChunker
-    from langchain_openai import OpenAIEmbeddings
 
-    from .config import MODELS
+    from .providers import get_embeddings
 
     splitter = SemanticChunker(
-        OpenAIEmbeddings(model=MODELS.embedding),
+        get_embeddings(),
         breakpoint_threshold_type="percentile",
         breakpoint_threshold_amount=90,
     )

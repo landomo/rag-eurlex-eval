@@ -59,11 +59,37 @@ TESTSET_PATH = PROCESSED / "testset.jsonl"
 
 # --------------------------------------------------------------------------- models
 
+# Sensible per-provider defaults, so switching provider does not require also
+# knowing that provider's model names.
+_LLM_DEFAULTS = {
+    "anthropic": {"generator": "claude-haiku-4-5-20251001", "judge": "claude-haiku-4-5-20251001"},
+    "openai": {"generator": "gpt-4o-mini", "judge": "gpt-4o-mini"},
+}
+_EMBED_DEFAULTS = {
+    "local": "BAAI/bge-small-en-v1.5",
+    "openai": "text-embedding-3-small",
+    "voyage": "voyage-3",
+}
+
+_LLM_PROVIDER = os.getenv("RAGBENCH_LLM_PROVIDER", "anthropic").lower()
+_EMBED_PROVIDER = os.getenv("RAGBENCH_EMBED_PROVIDER", "local").lower()
+
+
 @dataclass(frozen=True)
 class Models:
-    generator: str = os.getenv("RAGBENCH_GEN_MODEL", "gpt-4o-mini")
-    judge: str = os.getenv("RAGBENCH_JUDGE_MODEL", "gpt-4o-mini")
-    embedding: str = os.getenv("RAGBENCH_EMBED_MODEL", "text-embedding-3-small")
+    llm_provider: str = _LLM_PROVIDER
+    embed_provider: str = _EMBED_PROVIDER
+    generator: str = os.getenv(
+        "RAGBENCH_GEN_MODEL",
+        _LLM_DEFAULTS.get(_LLM_PROVIDER, _LLM_DEFAULTS["anthropic"])["generator"],
+    )
+    judge: str = os.getenv(
+        "RAGBENCH_JUDGE_MODEL",
+        _LLM_DEFAULTS.get(_LLM_PROVIDER, _LLM_DEFAULTS["anthropic"])["judge"],
+    )
+    embedding: str = os.getenv(
+        "RAGBENCH_EMBED_MODEL", _EMBED_DEFAULTS.get(_EMBED_PROVIDER, _EMBED_DEFAULTS["local"])
+    )
 
 
 MODELS = Models()
@@ -98,10 +124,8 @@ def default_grid() -> list[RunSpec]:
     return [RunSpec(c, m) for c in CHUNKERS for m in RETRIEVAL_MODES]
 
 
-def require_openai_key() -> str:
-    key = os.getenv("OPENAI_API_KEY")
-    if not key:
-        raise SystemExit(
-            "OPENAI_API_KEY is not set. Copy .env.example to .env and add your key."
-        )
-    return key
+def require_api_key() -> None:
+    """Validate credentials and model wiring before spending an hour of compute."""
+    from .providers import preflight
+
+    preflight()

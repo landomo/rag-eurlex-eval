@@ -44,14 +44,14 @@ EUR-Lex (CELEX 32024R1689, 32016R0679)
   │      semantic             embedding-breakpoint chunking
   │      structural_article   one chunk per Article, heading-prefixed
   │
-  ├─ index.py .......... text-embedding-3-small → Chroma (cosine),
+  ├─ index.py .......... embeddings → Chroma (cosine),
   │                      one persistent collection per strategy
   │
   ├─ retrieval.py ...... dense      Chroma top-k
   │                      hybrid     BM25 + dense, reciprocal-rank fusion (0.4 / 0.6)
   │                      + rerank   fetch 20 → FlashRank cross-encoder → top 5
   │
-  ├─ pipeline.py ....... strict-grounding prompt, gpt-4o-mini, forced abstention
+  ├─ pipeline.py ....... strict-grounding prompt, Claude, forced abstention
   │
   ├─ testset.py ........ 28 hand-written questions + ~45 LLM-generated,
   │                      each with a reference answer and reference_contexts
@@ -64,13 +64,18 @@ EUR-Lex (CELEX 32024R1689, 32016R0679)
 
 | Layer | Choice | Why |
 |---|---|---|
-| Embeddings | OpenAI `text-embedding-3-small` | 1536-dim, cheap enough to re-embed the corpus four times |
+| Generator | Claude Haiku 4.5, temperature 0 | The experiment is about retrieval, so the generator is held constant across all runs |
+| Judge | Claude Haiku 4.5 via Ragas | Same model in every run, so judge bias is a constant rather than a confound |
+| Embeddings | `BAAI/bge-small-en-v1.5` via fastembed, local | Anthropic serves no embeddings API. ONNX Runtime, no PyTorch, no second API key — and it reuses the runtime FlashRank already needs |
 | Vector store | Chroma, persistent, cosine | No server to run; one collection per chunking strategy keeps runs isolated |
 | Sparse retrieval | BM25 (`rank_bm25`) | Legal queries carry exact statutory tokens |
 | Fusion | LangChain `EnsembleRetriever`, weights 0.4 BM25 / 0.6 dense | Reciprocal-rank fusion; lexical weight is deliberately non-trivial |
 | Reranker | FlashRank `ms-marco-MiniLM-L-12-v2` | CPU cross-encoder, no extra API key, ~50 MB |
-| Generator | `gpt-4o-mini`, temperature 0 | Cost; the experiment is about retrieval, so the generator is held constant |
-| Judge | `gpt-4o-mini` via Ragas | Same model across all runs, so judge bias is a constant, not a confound |
+
+Every one of these is swappable from `.env` without touching code — `RAGBENCH_LLM_PROVIDER`
+accepts `anthropic` or `openai`, `RAGBENCH_EMBED_PROVIDER` accepts `local`, `openai` or
+`voyage`. All vendor-specific code lives in `src/ragbench/providers.py`; nothing else in
+the codebase imports an SDK directly, and there are tests asserting that.
 
 ---
 
@@ -142,25 +147,37 @@ per-question responses needed to compute it.
 ## Reproducing the results
 
 ```bash
-git clone <this repo> && cd rag-eurlex-eval
+git clone https://github.com/landomo/rag-eurlex-eval && cd rag-eurlex-eval
 make install                      # venv + pinned deps
-cp .env.example .env              # add your OPENAI_API_KEY
+cp .env.example .env              # add ANTHROPIC_API_KEY — that is the only key needed
 
 make ingest                       # download + segment the AI Act and GDPR
-make index                        # chunk 4 ways, embed, build Chroma collections
-make testset                      # build the gold set (LLM-assisted, ~$0.20)
+make index                        # chunk 4 ways, embed locally, build Chroma collections
+make testset                      # build the gold set (LLM-assisted)
 make run                          # the 9-run grid
 make report                       # → results/RESULTS.md
 ```
 
 Or all at once: `make all`.
 
-**Cost and time.** The dominant cost is the Ragas judge: six LLM metrics × ~73 questions
-× 9 runs. With `gpt-4o-mini` expect roughly **$3–6** and **60–90 minutes** end to end.
-Sanity-check the wiring first with `python scripts/04_run_experiments.py --limit 5`.
+**Time and cost.** Embeddings and reranking are local and free; the spend is entirely the
+Claude calls — six LLM-judged metrics × ~73 questions × 9 runs, roughly 4,000 judge calls
+plus ~660 generation calls. Rather than trust an estimate, measure it:
 
-Runs are cached by `run_id` — re-running skips completed configurations. Use `--force`
-to override.
+```bash
+python scripts/04_run_experiments.py --limit 5     # 5 questions, all 9 configs
+```
+
+Check the spend in the Anthropic console and multiply by ~15 for the full gold set. This
+also fails fast on credentials and model names — `require_api_key()` instantiates both
+LLM roles and the embedder before any question is answered, so a typo costs you a second
+rather than an hour.
+
+Expect **60–90 minutes** wall-clock for the full grid. Runs are cached by `run_id`, so
+re-running skips completed configurations; use `--force` to override.
+
+The first `make index` downloads ~130 MB of ONNX embedding weights, and the first
+reranked run downloads the FlashRank cross-encoder. Both then run offline.
 
 **Offline tests** (no API key, no network):
 
@@ -194,6 +211,11 @@ are capped at 3,000 characters so context size stays comparable across strategie
 Right to erasure`) as a prefix, so a fragment retrieved in isolation still identifies
 itself — and the generator has something concrete to cite.
 
+**One key, by design.** The obvious way to build this is OpenAI end to end. Anthropic
+serves no embeddings API, so using Claude means solving embeddings separately — the easy
+answer is a second vendor and a second key, the better answer is running them locally.
+fastembed does that in ONNX with no PyTorch, on the runtime FlashRank already pulls in.
+
 **Dependency pinning is deliberate.** Ragas 0.4.x imports
 `langchain_community.chat_models.vertexai`, which was removed in langchain-community
 0.4. Ragas `0.3.9` on the langchain `0.3` line is the last combination that installs and
@@ -203,9 +225,15 @@ imports cleanly; `requirements.txt` pins it with a comment explaining why.
 
 ## Known limitations
 
-- **Single judge model.** All metrics come from `gpt-4o-mini`. LLM-as-judge scores are
-  noisy and correlated with the judge's own biases. Re-running with a second judge
-  (`gpt-4o`, or Claude) and reporting agreement would materially strengthen the claims.
+- **Single judge model.** All metrics come from one Claude model. LLM-as-judge scores are
+  noisy and correlated with the judge's own biases. The provider abstraction makes the
+  check cheap — re-run the winning configuration with `RAGBENCH_JUDGE_MODEL` set to a
+  larger Claude model, or flip `RAGBENCH_LLM_PROVIDER=openai`, and report the agreement.
+  Until that is done, treat the ordering as more trustworthy than the absolute values.
+- **Structured output from the judge.** Ragas metrics parse JSON out of the judge. Claude
+  is reliable at this but not infallible; `evaluate()` runs with `raise_exceptions=False`,
+  so a failed parse yields `NaN` for that sample rather than killing the run. Check
+  `n_samples` against the NaN count in `results/runs/*.json` before quoting a metric.
 - **No confidence intervals.** Each configuration is evaluated once. Bootstrapping over
   the per-question scores in `results/runs/*.json` would give error bars and is a
   worthwhile next step — several of the deltas may not survive them.
@@ -231,6 +259,7 @@ src/ragbench/
   retrieval.py               dense / hybrid / reranked retrievers
   pipeline.py                the RAG chain and its grounding prompt
   testset.py                 gold set construction
+  providers.py               LLM + embedding provider abstraction
   evaluate.py                Ragas harness
   report.py                  ablation table generation
 scripts/01..05               the runnable stages
