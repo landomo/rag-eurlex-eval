@@ -1,27 +1,39 @@
-.PHONY: install ingest index testset run report all test clean
+# macOS ships python3, not python. Override with: make install PYTHON=python3.12
+PYTHON ?= python3
+VENV := .venv/bin/python
+
+.PHONY: install ingest index testset run report all test smoke clean
 
 install:
-	python -m venv .venv && .venv/bin/pip install -U pip && .venv/bin/pip install -r requirements.txt
+	$(PYTHON) -m venv .venv
+	$(VENV) -m pip install -U pip
+	$(VENV) -m pip install -r requirements.txt
+	@echo ""
+	@echo "Installed. Next: make smoke"
 
 ingest:
-	.venv/bin/python scripts/01_ingest.py
+	$(VENV) scripts/01_ingest.py
 
 index:
-	.venv/bin/python scripts/02_build_indexes.py
+	$(VENV) scripts/02_build_indexes.py
 
 testset:
-	.venv/bin/python scripts/03_make_testset.py --n-generated 45
+	$(VENV) scripts/03_make_testset.py --n-generated 45
+
+# Cheap end-to-end check: 5 questions across all 9 configurations.
+smoke:
+	$(VENV) scripts/04_run_experiments.py --limit 5
 
 run:
-	.venv/bin/python scripts/04_run_experiments.py
+	$(VENV) scripts/04_run_experiments.py
 
 report:
-	.venv/bin/python scripts/05_report.py
+	$(VENV) scripts/05_report.py
 
 all: ingest index testset run report
 
 test:
-	.venv/bin/python -m pytest tests/ -q
+	$(VENV) -m pytest tests/ -q
 
 clean:
 	rm -rf data/indexes results/runs
