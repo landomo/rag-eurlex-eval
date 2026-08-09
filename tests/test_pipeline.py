@@ -196,15 +196,22 @@ def test_openai_provider_selects_openai_model_defaults(monkeypatch):
 
 
 def test_missing_key_fails_fast_with_a_useful_message(monkeypatch):
+    """Must hold whether or not the developer has a populated .env on disk.
+
+    config.py calls load_dotenv() at import, so the env var has to be removed
+    AFTER the reload - otherwise .env silently puts the key back and the test
+    passes for the wrong reason.
+    """
     import importlib
 
     monkeypatch.setenv("RAGBENCH_LLM_PROVIDER", "anthropic")
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
 
     from ragbench import config, providers
 
     importlib.reload(config)
     importlib.reload(providers)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+
     with pytest.raises(SystemExit) as exc:
         providers.get_chat_llm("generator")
     assert "ANTHROPIC_API_KEY" in str(exc.value)
