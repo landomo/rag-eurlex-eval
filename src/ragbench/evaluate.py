@@ -104,15 +104,25 @@ def judge_components():
     if backend == "instructor" and MODELS.llm_provider in {"anthropic", "openai"}:
         from ragas.llms import llm_factory
 
-        if MODELS.llm_provider == "anthropic":
-            import anthropic
+        try:
+            if MODELS.llm_provider == "anthropic":
+                import anthropic
 
-            client = anthropic.Anthropic()
-        else:
-            import openai
+                client = anthropic.Anthropic()
+            else:
+                import openai
 
-            client = openai.OpenAI()
-        return llm_factory(MODELS.judge, provider=MODELS.llm_provider, client=client), emb
+                client = openai.OpenAI()
+            return llm_factory(MODELS.judge, provider=MODELS.llm_provider, client=client), emb
+        except Exception as exc:  # noqa: BLE001
+            raise SystemExit(
+                f"Could not initialise the Instructor judge backend: {exc}\n\n"
+                "On Python 3.9 this is usually the missing type-annotation backport:\n"
+                "    .venv/bin/pip install eval_type_backport==0.4.0 instructor==1.15.4\n\n"
+                "Or fall back to the LangChain judge (note: answer_relevancy and\n"
+                "noise_sensitivity return NaN with Claude on that path):\n"
+                "    RAGBENCH_JUDGE_BACKEND=langchain .venv/bin/python scripts/00_diagnose_metrics.py"
+            ) from exc
 
     from ragas.llms import LangchainLLMWrapper
 

@@ -3,6 +3,10 @@
 # langchain_community.chat_models.vertexai, which was removed). Ragas 0.3.9 on the
 # langchain 0.3 line is the last combination that installs and imports cleanly.
 ragas==0.3.9
+# Ragas pulls instructor in unpinned; pin it, and add the backport instructor
+# needs to parse `str | Path` annotations on Python 3.9 (macOS system python).
+instructor==1.15.4
+eval_type_backport==0.4.0
 langchain==0.3.30
 langchain-core==0.3.86
 langchain-community==0.3.31
