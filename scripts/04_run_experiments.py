@@ -10,7 +10,12 @@ from ragbench.testset import load
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=None, help="evaluate only the first N questions")
-    ap.add_argument("--no-rerank", action="store_true")
+    ap.add_argument("--chunkers", nargs="*", default=None,
+                    help="restrict the grid to these chunking strategies")
+    ap.add_argument("--rerank", action="store_true",
+                    help="after the grid, run cross-encoder reranking on the winner "
+                         "(one extra configuration - opt in, so it cannot surprise you)")
+    ap.add_argument("--no-rerank", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--force", action="store_true", help="ignore cached runs")
     ap.add_argument("--metrics", default="core", choices=["core", "standard", "full"],
                     help="core: faithfulness + context precision + recall. "
@@ -30,14 +35,32 @@ if __name__ == "__main__":
     print(f"{len(testset)} gold questions\n")
 
     grid = default_grid()
+    if args.chunkers:
+        grid = [s for s in grid if s.chunker in args.chunkers]
+        if not grid:
+            raise SystemExit(f"No configurations match --chunkers {args.chunkers}")
 
-    from ragbench.evaluate import estimate_calls
+    from ragbench.evaluate import already_done, estimate_calls
 
-    est = estimate_calls(args.metrics, len(testset), len(grid) + (0 if args.no_rerank else 1))
-    print(f"metric set: {args.metrics}")
-    print(f"estimated API calls: {est['generation_calls']:,} generation + "
-          f"{est['judge_calls']:,} judge = {est['total']:,} total")
-    print("(cached configurations are skipped and cost nothing)\n")
+    # Count only what will actually run. Quoting the whole grid when most of it is
+    # cached is how a "confirm the estimate" prompt stops meaning anything.
+    todo = [s for s in grid if args.force or not already_done(s.run_key(len(testset)))]
+    cached = len(grid) - len(todo)
+    n_billed = len(todo) + (1 if args.rerank else 0)
+
+    est = estimate_calls(args.metrics, len(testset), n_billed)
+    print(f"metric set : {args.metrics}")
+    print(f"gold set   : {len(testset)} questions")
+    print(f"configs    : {len(grid)} requested, {cached} already cached (free), "
+          f"{len(todo)} to run{' + 1 rerank' if args.rerank else ''}")
+    print(f"ESTIMATED API CALLS: {est['total']:,} "
+          f"({est['generation_calls']:,} generation + {est['judge_calls']:,} judge)")
+    if not args.rerank:
+        print("(reranking stage not included - pass --rerank to add it)")
+    print()
+    if not todo and not args.rerank:
+        print("Everything requested is already cached. Nothing to spend.")
+        raise SystemExit(0)
     if not args.yes:
         try:
             if input("proceed? [y/N] ").strip().lower() not in {"y", "yes"}:
@@ -51,7 +74,7 @@ if __name__ == "__main__":
         for s in grid
     ]
 
-    if not args.no_rerank:
+    if args.rerank:
         def key(p):
             a = p["aggregate"]
             return (
