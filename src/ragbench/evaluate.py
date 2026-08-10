@@ -34,6 +34,8 @@ from .testset import TestItem
 # Approximate judge LLM calls per sample, measured against Ragas 0.3.9 internals.
 # Used only to warn you what a run will cost before it starts.
 METRIC_CALL_COST = {
+    "non_llm_context_precision": 0,   # string similarity, no API call
+    "non_llm_context_recall": 0,
     "faithfulness": 2,
     "llm_context_precision_with_reference": 5,   # one call per retrieved chunk
     "context_recall": 1,
@@ -59,7 +61,18 @@ METRIC_CALL_COST = {
 # output never matched the expected schema, so it returned NaN while still
 # billing 3 calls per sample. Paying for a column of NaN is worse than not
 # measuring it, so it is not in any set. Use an OpenAI judge if you want it.
+# "budget" swaps both retrieval metrics for their non-LLM equivalents, which score
+# retrieved chunks against reference_contexts by string similarity and cost NOTHING.
+# Measured against the LLM-judged versions on 68 real samples they correlate only
+# r=0.42 (precision) and r=0.35 (recall) - they capture surface overlap, not
+# semantic coverage. Use it to screen many configurations cheaply, then confirm the
+# leaders with "core". Do not report budget numbers as if they were the LLM metrics.
 METRIC_SETS = {
+    "budget": [
+        "faithfulness",
+        "non_llm_context_precision",
+        "non_llm_context_recall",
+    ],
     "core": ["faithfulness", "llm_context_precision_with_reference", "context_recall"],
     "standard": [
         "faithfulness",
@@ -87,7 +100,14 @@ def build_metrics(which: str = "core", llm=None):
         ResponseRelevancy,
     )
 
+    from ragas.metrics import (
+        NonLLMContextPrecisionWithReference,
+        NonLLMContextRecall,
+    )
+
     by_name = {
+        "non_llm_context_precision": NonLLMContextPrecisionWithReference,
+        "non_llm_context_recall": NonLLMContextRecall,
         "faithfulness": Faithfulness,
         "answer_relevancy": ResponseRelevancy,
         "llm_context_precision_with_reference": LLMContextPrecisionWithReference,
@@ -99,7 +119,12 @@ def build_metrics(which: str = "core", llm=None):
         raise SystemExit(f"Unknown metric set {which!r}. Options: {list(METRIC_SETS)}")
     # Attach the judge explicitly rather than relying on evaluate() to inject it,
     # which matters for the Instructor-backed LLM.
-    return [by_name[n](llm=llm) if llm is not None else by_name[n]() for n in METRIC_SETS[which]]
+    out = []
+    for n in METRIC_SETS[which]:
+        cls = by_name[n]
+        # non-LLM metrics take no llm kwarg
+        out.append(cls() if METRIC_CALL_COST[n] == 0 or llm is None else cls(llm=llm))
+    return out
 
 
 def estimate_calls(metric_set: str, n_questions: int, n_configs: int) -> dict:
@@ -172,6 +197,7 @@ def collect_predictions(pipeline: RagPipeline, testset: list[TestItem], verbose:
                 "_id": item.id,
                 "_origin": item.origin,
                 "_category": getattr(item, "category", "generated"),
+                "_reference_contexts": item.reference_contexts,
                 "_citations": result.citations,
             }
         )
@@ -189,6 +215,11 @@ def score(rows: list[dict], run_id: str, seconds: float | None = None,
     payload = [
         {k: v for k, v in r.items() if not k.startswith("_")} for r in rows
     ]
+    # Non-LLM retrieval metrics score against reference_contexts, so they must be
+    # present in the dataset when the budget set is in use.
+    if any(m.startswith("non_llm") for m in METRIC_SETS.get(metric_set, [])):
+        for p_, r_ in zip(payload, rows):
+            p_["reference_contexts"] = r_.get("_reference_contexts") or []
     dataset = EvaluationDataset.from_list(payload)
 
     result = evaluate(

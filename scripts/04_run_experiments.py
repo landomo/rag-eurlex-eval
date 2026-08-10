@@ -20,7 +20,7 @@ if __name__ == "__main__":
                          "(one extra configuration - opt in, so it cannot surprise you)")
     ap.add_argument("--no-rerank", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--force", action="store_true", help="ignore cached runs")
-    ap.add_argument("--metrics", default="core", choices=["core", "standard", "full"],
+    ap.add_argument("--metrics", default="core", choices=["budget", "core", "standard", "full"],
                     help="core: faithfulness + context precision + recall. "
                          "standard: + factual correctness. full: + noise sensitivity. "
                          "answer_relevancy is excluded everywhere - it returns NaN "

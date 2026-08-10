@@ -17,6 +17,8 @@ langchain-experimental==0.3.4
 langchain-chroma==0.2.6
 chromadb==1.5.9
 rank-bm25==0.2.2
+# required by ragas' non-LLM string-similarity metrics
+rapidfuzz==3.14.3
 flashrank==0.2.10
 # Local embeddings via ONNX Runtime - no PyTorch, reuses flashrank's runtime.
 fastembed==0.7.4
