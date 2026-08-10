@@ -25,6 +25,7 @@ if __name__ == "__main__":
     ap.add_argument("--chunker", default="structural_article")
     ap.add_argument("--mode", default="hybrid")
     ap.add_argument("--n", type=int, default=1)
+    ap.add_argument("--metrics", default="full", choices=list(METRIC_SETS))
     args = ap.parse_args()
 
     require_api_key()
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     print(f"answer   : {rows[0]['response'][:90]}")
     print(f"contexts : {len(rows[0]['retrieved_contexts'])} retrieved\n")
 
-    payload = score(rows, "diagnostic", metric_set="full")
+    payload = score(rows, "diagnostic", metric_set=args.metrics)
 
     print("\nmetric                                    result")
     print("-" * 56)
@@ -57,6 +58,6 @@ if __name__ == "__main__":
     print(f"\n{ok} metrics working, {broken} returning NaN.")
     if broken:
         print("Do NOT run the full grid until this is 0 - you would pay for NaN columns.")
-        print("Try: RAGBENCH_JUDGE_BACKEND=langchain python scripts/00_diagnose_metrics.py")
+        print("Try a smaller set: .venv/bin/python scripts/00_diagnose_metrics.py --metrics core")
     else:
         print("All metrics produce real values. Safe to proceed.")

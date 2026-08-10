@@ -45,9 +45,35 @@ METRIC_CALL_COST = {
 # "core" is the defensible minimum: one generation-side metric and both
 # retrieval-side metrics. It is ~2.5x cheaper than "full" and covers every
 # claim the experiment actually makes.
+# Which metrics actually return numbers, measured over 25 real samples with a
+# Claude judge on Ragas 0.3.9 (see docs/METRIC_SUPPORT.md):
+#
+#   faithfulness                          25/25  usable
+#   llm_context_precision_with_reference  25/25  usable
+#   context_recall                        25/25  usable
+#   factual_correctness                   25/25  usable
+#   noise_sensitivity                     20/25  partial
+#   answer_relevancy                       0/25  BROKEN - excluded from every set
+#
+# answer_relevancy asks the judge for free-text JSON and parses it; Claude's
+# output never matched the expected schema, so it returned NaN while still
+# billing 3 calls per sample. Paying for a column of NaN is worse than not
+# measuring it, so it is not in any set. Use an OpenAI judge if you want it.
 METRIC_SETS = {
     "core": ["faithfulness", "llm_context_precision_with_reference", "context_recall"],
-    "full": list(METRIC_CALL_COST),
+    "standard": [
+        "faithfulness",
+        "llm_context_precision_with_reference",
+        "context_recall",
+        "factual_correctness",
+    ],
+    "full": [
+        "faithfulness",
+        "llm_context_precision_with_reference",
+        "context_recall",
+        "factual_correctness",
+        "noise_sensitivity",
+    ],
 }
 
 
@@ -86,10 +112,12 @@ def estimate_calls(metric_set: str, n_questions: int, n_configs: int) -> dict:
 def judge_components():
     """The judge is identical across every run, so judge bias is a constant, not a confound.
 
-    Backend matters. The LangChain wrapper asks the model for JSON and parses the
-    text; with Claude that failed to parse on 100% of answer_relevancy samples,
-    silently yielding NaN. The Instructor backend enforces the schema through
-    tool-calling instead. Set RAGBENCH_JUDGE_BACKEND=langchain to compare.
+    Backend note: ragas 0.3.9's classic metrics call the LangChain interface
+    (`agenerate_prompt`) on whatever LLM they are given, so `llm_factory`'s
+    Instructor-backed LLM raises AttributeError on every metric. llm_factory is
+    for Ragas' newer experimental API, not these metrics. The LangChain wrapper
+    is therefore the only working backend here; RAGBENCH_JUDGE_BACKEND=instructor
+    is retained only so the incompatibility can be reproduced.
     """
     import os
 
@@ -98,7 +126,7 @@ def judge_components():
     from .config import MODELS
     from .providers import get_embeddings
 
-    backend = os.getenv("RAGBENCH_JUDGE_BACKEND", "instructor").lower()
+    backend = os.getenv("RAGBENCH_JUDGE_BACKEND", "langchain").lower()
     emb = LangchainEmbeddingsWrapper(get_embeddings())
 
     if backend == "instructor" and MODELS.llm_provider in {"anthropic", "openai"}:

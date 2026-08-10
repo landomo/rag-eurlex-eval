@@ -12,8 +12,11 @@ if __name__ == "__main__":
     ap.add_argument("--limit", type=int, default=None, help="evaluate only the first N questions")
     ap.add_argument("--no-rerank", action="store_true")
     ap.add_argument("--force", action="store_true", help="ignore cached runs")
-    ap.add_argument("--metrics", default="core", choices=["core", "full"],
-                    help="core = faithfulness + context precision + recall (~2.5x cheaper)")
+    ap.add_argument("--metrics", default="core", choices=["core", "standard", "full"],
+                    help="core: faithfulness + context precision + recall. "
+                         "standard: + factual correctness. full: + noise sensitivity. "
+                         "answer_relevancy is excluded everywhere - it returns NaN "
+                         "with a Claude judge on ragas 0.3.9.")
     ap.add_argument("--yes", action="store_true", help="skip the cost confirmation")
     args = ap.parse_args()
 
