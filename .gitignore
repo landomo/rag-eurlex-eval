@@ -2,13 +2,15 @@
 .venv/
 __pycache__/
 *.pyc
-data/raw/*
-!data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
-data/indexes/
-results/runs/
-results/*.csv
-!results/summary.csv
 .pytest_cache/
 .ragas_cache/
+
+# Downloaded source texts and the vector indexes are rebuildable from scripts/01 and 02.
+# EUR-Lex content is not redistributed here.
+data/raw/*
+!data/raw/.gitkeep
+data/processed/sections.jsonl
+data/indexes/
+
+# The gold set and every raw evaluation run ARE tracked: they are the evidence.
+# Without them the numbers in docs/EVALUATION.md cannot be checked or re-analysed.
