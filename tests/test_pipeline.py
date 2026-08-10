@@ -251,3 +251,27 @@ def test_metric_sets_are_coherent():
     cheap = estimate_calls("core", 57, 9)["total"]
     dear = estimate_calls("full", 57, 9)["total"]
     assert cheap < dear
+
+
+def test_hedged_refusals_are_detected_not_accepted_as_ground_truth():
+    """A reference that says 'the excerpts do not provide...' is not ground truth.
+
+    Two such answers reached the gold set because detection only matched a leading
+    literal 'INSUFFICIENT'. Grading against them penalises every configuration
+    equally and measures nothing.
+    """
+    from ragbench.testset import _is_refusal
+
+    assert _is_refusal("INSUFFICIENT")
+    assert _is_refusal("The supplied excerpts do not provide sufficient information to answer.")
+    assert _is_refusal("The excerpts do not contain enough detail for a comparison.")
+    assert _is_refusal("This question cannot be answered from the provided material.")
+
+    assert not _is_refusal(
+        "According to Article 28 of the GDPR, a processor must process personal data "
+        "only on documented instructions from the controller."
+    )
+    assert not _is_refusal(
+        "Article 6 sets out the criteria for high-risk classification, and Article 43 "
+        "requires a conformity assessment before placing on the market."
+    )

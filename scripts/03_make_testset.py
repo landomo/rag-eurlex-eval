@@ -36,8 +36,15 @@ if __name__ == "__main__":
     if args.seeds_only and TESTSET_PATH.exists():
         from ragbench.testset import load as load_testset
 
-        kept_generated = [i for i in load_testset() if i.origin == "generated"]
+        from ragbench.testset import _is_refusal
+
+        existing = [i for i in load_testset() if i.origin == "generated"]
+        kept_generated = [i for i in existing if not _is_refusal(i.reference)]
+        dropped = len(existing) - len(kept_generated)
         print(f"Keeping {len(kept_generated)} existing generated items (no new cost for those).")
+        if dropped:
+            print(f"Dropped {dropped} generated items whose reference was a hedged refusal "
+                  f"- those cannot serve as ground truth.")
         args.n_generated = 0
 
     if not args.no_seed:

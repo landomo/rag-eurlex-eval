@@ -36,10 +36,44 @@ Rules:
 - Return strict JSON: {"question": "...", "reference": "..."}"""
 
 SEED_ANSWER_SYSTEM = """You produce reference answers for evaluating a legal retrieval system.
+
 Answer the question using ONLY the supplied excerpts from EU regulations.
-Cite the Article numbers you relied on. If the excerpts genuinely do not answer the
-question, reply exactly: INSUFFICIENT.
+
+- Answer as fully as the excerpts allow. A partial but accurate answer is useful and
+  expected; multi-part questions rarely have every part in one Article.
+- Cite the Article numbers you relied on, e.g. "(GDPR, Article 28)".
+- Do NOT hedge about the excerpts being incomplete. Never write "the excerpts do not
+  provide", "insufficient basis", or similar. State what the law says, nothing else.
+- Only if the excerpts contain NOTHING relevant to the question at all, reply with the
+  single word INSUFFICIENT and nothing else.
+
 Return strict JSON: {"reference": "..."}"""
+
+# The model does not always obey "reply exactly INSUFFICIENT" - it hedges in prose.
+# A hedged reference is worse than a dropped one: it silently becomes ground truth
+# that says "this cannot be answered", which penalises every configuration equally
+# and measures nothing.
+REFUSAL_MARKERS = (
+    "insufficient",
+    "do not provide sufficient",
+    "does not provide sufficient",
+    "do not contain sufficient",
+    "does not contain sufficient",
+    "do not contain enough",
+    "does not contain enough",
+    "not provide a comprehensive",
+    "cannot be answered",
+    "cannot answer",
+    "excerpts do not",
+    "excerpts provided do not",
+    "supplied excerpts do not",
+    "no relevant information",
+)
+
+
+def _is_refusal(text: str) -> bool:
+    head = text.strip().lower()[:400]
+    return any(m in head for m in REFUSAL_MARKERS)
 
 
 ABSTENTION_REFERENCE = (
@@ -97,6 +131,13 @@ def generate_from_sections(
         except Exception as exc:  # noqa: BLE001 - one bad sample shouldn't kill the run
             print(f"    skip {s.id}: {exc}")
             continue
+
+        # Same trap as the seed path: a hedged "the excerpt does not provide..."
+        # becomes ground truth asserting the question is unanswerable.
+        if _is_refusal(data.get("reference", "")):
+            print(f"    skip {s.id}: hedged reference, not usable as ground truth")
+            continue
+
         items.append(
             TestItem(
                 id=f"gen-{len(items):03d}",
@@ -170,7 +211,7 @@ def build_seed_items(seeds: list[dict], sections: list[Section]) -> list[TestIte
         reference, matched = "", []
         for k in (8, 16):
             matched = _match_sections(q, sections, k=k)
-            contexts = [f"{s.short_name} - {s.label}\n{s.text[:4000]}" for s in matched]
+            contexts = [f"{s.short_name} - {s.label}\n{s.text[:9000]}" for s in matched]
             try:
                 out = llm.invoke(
                     [
@@ -187,9 +228,10 @@ def build_seed_items(seeds: list[dict], sections: list[Section]) -> list[TestIte
             except Exception as exc:  # noqa: BLE001
                 print(f"    seed {i} ({category}) call failed at k={k}: {exc}")
                 continue
-            if not candidate.upper().startswith("INSUFFICIENT"):
+            if not _is_refusal(candidate):
                 reference = candidate
                 break
+            print(f"    seed {i} ({category}): refusal at k={k}, escalating")
 
         if not reference:
             unresolved.append(f"[{category}] {q}")
@@ -201,7 +243,7 @@ def build_seed_items(seeds: list[dict], sections: list[Section]) -> list[TestIte
                 user_input=q,
                 reference=reference,
                 reference_contexts=[
-                    f"{s.short_name} - {s.label}\n{s.text[:4000]}" for s in matched
+                    f"{s.short_name} - {s.label}\n{s.text[:9000]}" for s in matched
                 ],
                 origin="seed",
                 category=category,
