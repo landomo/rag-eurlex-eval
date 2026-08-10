@@ -23,9 +23,9 @@ EU regulations are a deliberately unfriendly retrieval target:
 - **Long-range dependencies.** Article 6 of the AI Act defines high-risk systems by
   reference to Annex III; Article 22 of the GDPR only makes sense alongside Article 4's
   definitions. Naive chunking severs these links.
-- **Legalese defeats pure semantics.** "Legitimate interest", "DPIA", "Article 22" are
-  exact tokens. Dense retrieval alone routinely misses them, which is the case for
-  hybrid search.
+- **Legalese may defeat pure semantics.** "Legitimate interest", "DPIA", "Article 22" are
+  exact tokens that dense embeddings can blur. That was the case for hybrid search, and
+  it is the hypothesis this project tested — [it did not hold](#b--retrieval-mode-structural-chunking-27-hand-written-questions).
 - **Hallucination is expensive.** A confidently wrong answer about a compliance
   obligation is worse than no answer. This is why the pipeline is built to abstain, and
   why faithfulness is the headline metric.
@@ -52,16 +52,16 @@ EUR-Lex (CELEX 32024R1689, 32016R0679)
   │                      one persistent collection per strategy
   │
   ├─ retrieval.py ...... dense      Chroma top-k
-  │                      hybrid     BM25 + dense, reciprocal-rank fusion (0.4 / 0.6)
+  │                      hybrid     BM25 + dense, RRF (0.5 / 0.5), truncated to k
   │                      + rerank   fetch 20 → FlashRank cross-encoder → top 5
   │
   ├─ pipeline.py ....... strict-grounding prompt, Claude, forced abstention
   │
-  ├─ testset.py ........ 28 hand-written questions + ~45 LLM-generated,
-  │                      each with a reference answer and reference_contexts
+  ├─ testset.py ........ 27 hand-written questions + 43 LLM-generated, each with a
+  │                      reference answer, reference_contexts and a category
   │
-  └─ evaluate.py ....... Ragas: faithfulness, answer relevancy, context precision,
-                         context recall, factual correctness, noise sensitivity
+  └─ evaluate.py ....... Ragas: faithfulness, context precision, context recall,
+                         factual correctness  (answer relevancy excluded - NaN with Claude)
 ```
 
 ### Stack
@@ -73,7 +73,7 @@ EUR-Lex (CELEX 32024R1689, 32016R0679)
 | Embeddings | `BAAI/bge-small-en-v1.5` via fastembed, local | Anthropic serves no embeddings API. ONNX Runtime, no PyTorch, no second API key — and it reuses the runtime FlashRank already needs |
 | Vector store | Chroma, persistent, cosine | No server to run; one collection per chunking strategy keeps runs isolated |
 | Sparse retrieval | BM25 (`rank_bm25`) | Legal queries carry exact statutory tokens |
-| Fusion | LangChain `EnsembleRetriever`, weights 0.4 BM25 / 0.6 dense | Reciprocal-rank fusion; lexical weight is deliberately non-trivial |
+| Fusion | LangChain `EnsembleRetriever`, weights **0.5 / 0.5**, output truncated to k | Equal weights are forced by the RRF arithmetic: at 0.4/0.6 the lexical arm can never enter the top-k and hybrid silently becomes dense ([why](docs/EVALUATION.md#a-second-defect-found-by-arithmetic-rather-than-by-running)) |
 | Reranker | FlashRank `ms-marco-MiniLM-L-12-v2` | CPU cross-encoder, no extra API key, ~50 MB |
 
 Every one of these is swappable from `.env` without touching code — `RAGBENCH_LLM_PROVIDER`
@@ -108,11 +108,13 @@ measures chunk size. Comparison A is affected by this.
 
 Two halves, on purpose:
 
-- **28 hand-written questions** (`config/seed_questions.yaml`), tagged by category:
+- **27 hand-written questions** (`config/seed_questions.yaml`), tagged by category:
   single-article lookup, multi-hop, cross-regulation, lexical, and **negative**
   (questions the corpus genuinely cannot answer — these test abstention, and a system
   that scores well on recall while confidently answering them is broken).
-- **~45 LLM-generated questions** grounded in randomly sampled Articles, for breadth.
+- **43 LLM-generated questions** grounded in randomly sampled Articles, for breadth.
+  Comparison B uses the hand-written 27 only: the generated majority are single-Article
+  lookups that every configuration handles, so they dilute signal and consume budget.
 
 Reference answers are drafted from the *source Articles*, never through the retrieval
 system under test — otherwise the gold set is circular and every metric is inflated.
@@ -123,15 +125,16 @@ Seed items are written with `needs_review: true`; a gold set nobody read is not 
 | Metric | Question it answers | What moves it |
 |---|---|---|
 | **Faithfulness** | Are the answer's claims entailed by the retrieved context? | Prompt strictness, context quality. The hallucination metric. |
-| **Answer relevancy** | Does the answer address the question asked? | Generation, mostly constant here |
+| ~~Answer relevancy~~ | Does the answer address the question asked? | **Not used** — returns NaN on 100% of samples with a Claude judge |
 | **Context precision** | Of the chunks retrieved, how many were useful? | **Reranking.** Punishes over-retrieval. |
 | **Context recall** | Did retrieval surface everything the reference needed? | **Chunking.** Punishes severed cross-references. |
 | **Factual correctness** | End-to-end answer quality vs. reference | Everything |
-| **Noise sensitivity** | How often irrelevant context leaks wrong claims in? | Precision/recall trade-off. *Lower is better.* |
+| ~~Noise sensitivity~~ | How often irrelevant context leaks wrong claims in? | **Not used** — 20/25 samples only, and outside the `core` set |
 
-Precision and recall are the retrieval-side pair; faithfulness and relevancy are the
-generation-side pair. Reporting only one side is how RAG benchmarks mislead — a system
-that retrieves 20 chunks will look faithful and score terribly on precision.
+Precision and recall are the retrieval-side pair; faithfulness and factual correctness are
+the generation-side pair. Reporting only one side is how RAG benchmarks mislead — a system
+that retrieves 20 chunks will look faithful and score terribly on precision. Which is
+exactly the trap the discarded hybrid run fell into.
 
 ---
 
@@ -217,24 +220,27 @@ make report                       # → results/RESULTS.md
 
 Or all at once: `make all`.
 
-**Time and cost.** Embeddings and reranking are local and free; the spend is entirely the
-Claude calls — six LLM-judged metrics × ~73 questions × 9 runs, roughly 4,000 judge calls
-plus ~660 generation calls. Rather than trust an estimate, measure it:
+**Time and cost.** Embeddings and reranking run locally and are free; the spend is
+entirely Claude calls, and it is dominated by evaluation rather than generation — see the
+[cost analysis](docs/EVALUATION.md#5-cost-analysis). Price any plan in dollars first:
 
 ```bash
-python scripts/04_run_experiments.py --limit 5     # 5 questions, all 9 configs
+.venv/bin/python scripts/07_estimate_cost.py --budget 5
 ```
 
-Check the spend in the Anthropic console and multiply by ~15 for the full gold set. This
-also fails fast on credentials and model names — `require_api_key()` instantiates both
-LLM roles and the embedder before any question is answered, so a typo costs you a second
-rather than an hour.
+Measured reference points: **$0.0043** to serve one answer, **$0.0224** to evaluate it,
+**$1.94** for two configurations over 27 questions. A full 4×2 grid on 70 questions costs
+roughly **$13**.
 
-Expect **60–90 minutes** wall-clock for the full grid. Runs are cached by `run_id`, so
-re-running skips completed configurations; use `--force` to override.
+Validate before you spend. `scripts/06_check_testset.py` checks the gold set for free and
+`scripts/00_diagnose_metrics.py` verifies every metric returns real numbers for about
+$0.02 — that one would have saved a third of this project's budget had it existed sooner.
 
-The first `make index` downloads ~130 MB of ONNX embedding weights, and the first
-reranked run downloads the FlashRank cross-encoder. Both then run offline.
+Runs are cached by configuration **and question count**, so stopping mid-grid loses
+nothing and resuming repays nothing. Use `--force` to override.
+
+The first `make index` downloads ~130 MB of ONNX embedding weights; the first reranked run
+downloads the FlashRank cross-encoder. Both then run offline.
 
 **Offline tests** (no API key, no network):
 
@@ -276,7 +282,10 @@ fastembed does that in ONNX with no PyTorch, on the runtime FlashRank already pu
 **Dependency pinning is deliberate.** Ragas 0.4.x imports
 `langchain_community.chat_models.vertexai`, which was removed in langchain-community
 0.4. Ragas `0.3.9` on the langchain `0.3` line is the last combination that installs and
-imports cleanly; `requirements.txt` pins it with a comment explaining why.
+imports cleanly. `instructor` and `eval_type_backport` are pinned too: ragas pulls
+`instructor` in unpinned, and on Python 3.9 — which is what macOS ships — it cannot parse
+its own `str | Path` annotations without the backport. Every pin was resolved against
+Python 3.9 including transitive dependencies.
 
 ---
 
@@ -315,9 +324,13 @@ src/ragbench/
   providers.py               LLM + embedding provider abstraction
   evaluate.py                Ragas harness
   report.py                  ablation table generation
-scripts/01..05               the runnable stages
+scripts/00..07               diagnose, ingest, index, testset, run, report,
+                            check gold set, estimate cost
 tests/                       offline tests, synthetic regulation fixture
-results/                     per-run JSON, summary.csv, RESULTS.md
+results/                     per-run JSON (per-question scores), summary.csv,
+                            by_category.csv, RESULTS.md
+docs/EVALUATION.md           the evaluation report: findings, caveats, costs
+docs/METRIC_SUPPORT.md       which Ragas metrics survive a Claude judge
 ```
 
 ## Licence
