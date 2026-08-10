@@ -1,51 +1,72 @@
-# Hand-written evaluation questions.
+# Hand-written evaluation questions, each tagged with what it is testing.
 #
-# These are questions, not answers - reference answers are drafted from the source
-# Articles by scripts/03_make_testset.py and flagged needs_review=true. Read them
-# before you trust the numbers; a gold set nobody checked is not a gold set.
+# categories:
+#   lookup     single-Article factual retrieval
+#   multi_hop  needs two or more Articles stitched together
+#   cross_reg  spans the AI Act and the GDPR
+#   lexical    hinges on exact statutory vocabulary, where BM25 should win
+#   negative   NOT answerable from the corpus - tests abstention, not recall.
+#              These are kept in the gold set with an expected-refusal reference;
+#              a system that confidently answers them is broken, and that has to
+#              be measurable rather than quietly excluded.
 #
-# Categories are deliberate:
-#   lookup       single-Article factual retrieval
-#   multi_hop    needs two or more Articles stitched together
-#   cross_reg    spans the AI Act and the GDPR
-#   negative     not answerable from the corpus - tests abstention, not recall
-#   lexical      hinges on exact statutory vocabulary, where BM25 should shine
+# Reference answers are drafted from the source Articles by scripts/03_make_testset.py
+# and flagged needs_review. Read them before trusting the numbers.
 
 questions:
-  # --- lookup ---------------------------------------------------------------
-  - What is the definition of an "AI system" under the EU AI Act?
-  - Which AI practices are prohibited under the EU AI Act?
-  - What is the lawful basis of "legitimate interests" under the GDPR and when can it be relied on?
-  - Within what time period must a personal data breach be notified to the supervisory authority?
-  - What are the maximum administrative fines under the GDPR?
-  - What are the penalties for non-compliance with the prohibited AI practices in the AI Act?
-  - What does the right to erasure require, and what are its exceptions?
-  - What obligations apply to providers of general-purpose AI models?
-  - What information must be provided to a data subject when personal data is collected directly from them?
-  - What is a data protection impact assessment and when is it mandatory?
-  - What transparency obligations apply to AI systems that interact directly with natural persons?
-  - How does the AI Act define a "provider" as distinct from a "deployer"?
-
-  # --- multi_hop ------------------------------------------------------------
-  - Which criteria make an AI system high-risk, and what conformity assessment must it undergo before being placed on the market?
-  - What technical documentation and record-keeping obligations does a provider of a high-risk AI system have?
-  - What human oversight measures must be built into a high-risk AI system, and who is responsible for implementing them?
-  - How do the AI Act's risk management system requirements interact with its post-market monitoring obligations?
-  - What are the conditions under which a controller may transfer personal data to a third country without an adequacy decision?
-  - What are the responsibilities of a processor, and what must be included in a controller-processor contract?
-
-  # --- cross_reg ------------------------------------------------------------
-  - How do the AI Act's rules on automated decision-making relate to the GDPR's provisions on automated individual decision-making?
-  - Can special categories of personal data be processed to detect bias in high-risk AI systems, and under what conditions?
-  - What role do data protection authorities play in the enforcement of the AI Act?
-  - How do the AI Act's transparency requirements differ from the GDPR's information obligations?
-
-  # --- lexical --------------------------------------------------------------
-  - What does "real-time remote biometric identification system" mean and when may it be used in publicly accessible spaces for law enforcement?
-  - What is meant by "systemic risk" in the context of general-purpose AI models, and what threshold triggers it?
-  - What is a "regulatory sandbox" under the AI Act and who may participate?
-  - What does "pseudonymisation" mean under the GDPR?
-
-  # --- negative (abstention checks) ----------------------------------------
-  - What is the corporate tax rate applicable to AI companies established in Ireland?
-  - What does the EU Digital Markets Act say about gatekeeper interoperability obligations?
+  - q: "What is the definition of an \"AI system\" under the EU AI Act?"
+    category: lookup
+  - q: "Which AI practices are prohibited under the EU AI Act?"
+    category: lookup
+  - q: "What is the lawful basis of \"legitimate interests\" under the GDPR and when can it be relied on?"
+    category: lookup
+  - q: "Within what time period must a personal data breach be notified to the supervisory authority?"
+    category: lookup
+  - q: "What are the maximum administrative fines under the GDPR?"
+    category: lookup
+  - q: "What are the penalties for non-compliance with the prohibited AI practices in the AI Act?"
+    category: lookup
+  - q: "What does the right to erasure require, and what are its exceptions?"
+    category: lookup
+  - q: "What obligations apply to providers of general-purpose AI models?"
+    category: lookup
+  - q: "What information must be provided to a data subject when personal data is collected directly from them?"
+    category: lookup
+  - q: "What is a data protection impact assessment and when is it mandatory?"
+    category: lookup
+  - q: "What transparency obligations apply to AI systems that interact directly with natural persons?"
+    category: lookup
+  - q: "How does the AI Act define a \"provider\" as distinct from a \"deployer\"?"
+    category: lookup
+  - q: "Which criteria make an AI system high-risk, and what conformity assessment must it undergo before being placed on the market?"
+    category: multi_hop
+  - q: "What technical documentation and record-keeping obligations does a provider of a high-risk AI system have?"
+    category: multi_hop
+  - q: "What human oversight measures must be built into a high-risk AI system, and who is responsible for implementing them?"
+    category: multi_hop
+  - q: "How do the AI Act's risk management system requirements interact with its post-market monitoring obligations?"
+    category: multi_hop
+  - q: "What are the conditions under which a controller may transfer personal data to a third country without an adequacy decision?"
+    category: multi_hop
+  - q: "What are the responsibilities of a processor, and what must be included in a controller-processor contract?"
+    category: multi_hop
+  - q: "How do the AI Act's rules on automated decision-making relate to the GDPR's provisions on automated individual decision-making?"
+    category: cross_reg
+  - q: "Can special categories of personal data be processed to detect bias in high-risk AI systems, and under what conditions?"
+    category: cross_reg
+  - q: "What role do data protection authorities play in the enforcement of the AI Act?"
+    category: cross_reg
+  - q: "How do the AI Act's transparency requirements differ from the GDPR's information obligations?"
+    category: cross_reg
+  - q: "What does \"real-time remote biometric identification system\" mean and when may it be used in publicly accessible spaces for law enforcement?"
+    category: lexical
+  - q: "What is meant by \"systemic risk\" in the context of general-purpose AI models, and what threshold triggers it?"
+    category: lexical
+  - q: "What is a \"regulatory sandbox\" under the AI Act and who may participate?"
+    category: lexical
+  - q: "What does \"pseudonymisation\" mean under the GDPR?"
+    category: lexical
+  - q: "What is the corporate tax rate applicable to AI companies established in Ireland?"
+    category: negative
+  - q: "What does the EU Digital Markets Act say about gatekeeper interoperability obligations?"
+    category: negative

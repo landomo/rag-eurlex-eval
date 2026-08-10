@@ -13,12 +13,14 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-generated", type=int, default=45)
     ap.add_argument("--no-seed", action="store_true")
+    ap.add_argument("--seeds-only", action="store_true",
+                    help="rebuild only the hand-written seed items, keep existing generated ones")
     ap.add_argument("--force", action="store_true",
                     help="regenerate even if a testset already exists (costs money, "
                          "and invalidates comparability with existing runs)")
     args = ap.parse_args()
 
-    if TESTSET_PATH.exists() and not args.force:
+    if TESTSET_PATH.exists() and not args.force and not args.seeds_only:
         n = sum(1 for _ in TESTSET_PATH.open())
         raise SystemExit(
             f"A gold set already exists ({n} items at {TESTSET_PATH.relative_to(ROOT)}).\n"
@@ -30,19 +32,30 @@ if __name__ == "__main__":
     sections = load_sections()
     items = []
 
+    kept_generated = []
+    if args.seeds_only and TESTSET_PATH.exists():
+        from ragbench.testset import load as load_testset
+
+        kept_generated = [i for i in load_testset() if i.origin == "generated"]
+        print(f"Keeping {len(kept_generated)} existing generated items (no new cost for those).")
+        args.n_generated = 0
+
     if not args.no_seed:
         seed_file = ROOT / "config" / "seed_questions.yaml"
         seeds = yaml.safe_load(seed_file.read_text(encoding="utf-8"))["questions"]
-        print(f"Building references for {len(seeds)} hand-written questions...")
+        n_neg = sum(1 for s_ in seeds if isinstance(s_, dict) and s_.get("category") == "negative")
+        print(f"Building references for {len(seeds)} hand-written questions "
+              f"({n_neg} negatives need no LLM call)...")
         items += build_seed_items(seeds, sections)
 
     if args.n_generated:
         print(f"Generating {args.n_generated} questions from sampled Articles...")
         items += generate_from_sections(sections, n=args.n_generated)
 
+    items += kept_generated
     save(items)
     origins = {}
     for it in items:
-        origins[it.origin] = origins.get(it.origin, 0) + 1
+        origins[it.category] = origins.get(it.category, 0) + 1
     print(f"\n{len(items)} gold items written to {TESTSET_PATH.relative_to(ROOT)}: {origins}")
     print("Seed items are flagged needs_review=true - read them before trusting the numbers.")

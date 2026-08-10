@@ -58,6 +58,31 @@ def composite(df: pd.DataFrame) -> pd.Series:
     return s.round(4)
 
 
+def by_category() -> pd.DataFrame | None:
+    """Score breakdown per question category.
+
+    This is where the interesting claims live: hybrid retrieval should help most
+    on `lexical` questions (exact statutory tokens), structural chunking most on
+    `multi_hop` (severed cross-references), and `negative` questions test whether
+    the system abstains rather than inventing an answer.
+    """
+    rows = []
+    for p in sorted(RUNS.glob("*.json")):
+        d = json.loads(p.read_text(encoding="utf-8"))
+        for s in d.get("samples", []):
+            r = {"run_id": d["run_id"], "category": s.get("_category", "generated")}
+            for k, v in (s.get("_scores") or {}).items():
+                label = METRIC_LABELS.get(k)
+                if label:
+                    r[label] = v
+            rows.append(r)
+    if not rows:
+        return None
+    df = pd.DataFrame(rows)
+    metric_cols = [c for c in dict.fromkeys(METRIC_LABELS.values()) if c in df.columns]
+    return df.groupby(["run_id", "category"])[metric_cols].mean().round(3).reset_index()
+
+
 def build_report() -> str:
     df = load_runs()
     df["Composite"] = composite(df)
@@ -122,6 +147,16 @@ def build_report() -> str:
                     f"Composite {b['Composite']:.3f} -> {r['Composite']:.3f}."
                 )
         lines.append("")
+
+    cat = by_category()
+    if cat is not None and not cat.empty:
+        best_id = str(best["run_id"]) if "run_id" in best else None
+        sub = cat[cat["run_id"] == best_id] if best_id else cat
+        if not sub.empty:
+            lines += ["## Best configuration, broken down by question type", "",
+                      sub.drop(columns=["run_id"]).to_markdown(index=False, floatfmt=".3f"), ""]
+        cat.to_csv(RESULTS / "by_category.csv", index=False)
+        lines += ["Full per-category data: `results/by_category.csv`.", ""]
 
     return "\n".join(lines)
 

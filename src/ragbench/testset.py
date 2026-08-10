@@ -42,6 +42,12 @@ question, reply exactly: INSUFFICIENT.
 Return strict JSON: {"reference": "..."}"""
 
 
+ABSTENTION_REFERENCE = (
+    "The provided context does not contain enough information to answer this question. "
+    "This topic is not addressed by the EU AI Act or the GDPR."
+)
+
+
 @dataclass
 class TestItem:
     id: str
@@ -49,6 +55,7 @@ class TestItem:
     reference: str
     reference_contexts: list[str]
     origin: str                      # "seed" | "generated"
+    category: str = "generated"      # lookup | multi_hop | cross_reg | lexical | negative
     section_ids: list[str] = field(default_factory=list)
     needs_review: bool = False
 
@@ -97,6 +104,7 @@ def generate_from_sections(
                 reference=data["reference"].strip(),
                 reference_contexts=[excerpt],
                 origin="generated",
+                category="generated",
                 section_ids=[s.id],
             )
         )
@@ -105,7 +113,7 @@ def generate_from_sections(
 
 # --------------------------------------------------------------------------- seed
 
-def _match_sections(question: str, sections: list[Section], k: int = 4) -> list[Section]:
+def _match_sections(question: str, sections: list[Section], k: int = 8) -> list[Section]:
     """Cheap lexical match to pull the Articles a seed question is about.
 
     BM25 over section text - no embeddings, no retrieval system, so the gold set
@@ -113,44 +121,100 @@ def _match_sections(question: str, sections: list[Section], k: int = 4) -> list[
     """
     from rank_bm25 import BM25Okapi
 
-    corpus = [re.findall(r"\w+", s.text.lower()) for s in sections]
+    # Index heading + label alongside body text: multi-hop questions often name the
+    # concept ("data protection impact assessment") that appears in the Article
+    # heading but only obliquely in its body.
+    corpus = [
+        re.findall(r"\w+", f"{s.label} {s.heading} {s.heading} {s.text}".lower())
+        for s in sections
+    ]
     bm25 = BM25Okapi(corpus)
     scores = bm25.get_scores(re.findall(r"\w+", question.lower()))
     ranked = sorted(range(len(sections)), key=lambda i: scores[i], reverse=True)[:k]
     return [sections[i] for i in ranked]
 
 
-def build_seed_items(seed_questions: list[str], sections: list[Section]) -> list[TestItem]:
+def build_seed_items(seeds: list[dict], sections: list[Section]) -> list[TestItem]:
+    """Draft a reference answer for each hand-written question.
+
+    Negatives never touch the LLM: they are unanswerable by construction, so their
+    reference IS the refusal. Keeping them in the gold set is the whole point -
+    it makes over-confident answering measurable.
+
+    For the rest, matching escalates (8 sections, then 16) before giving up, because
+    multi-hop and cross-regulation questions are exactly the valuable ones and also
+    exactly the ones a narrow lexical match misses.
+    """
     llm = _llm()
     items: list[TestItem] = []
-    for i, q in enumerate(seed_questions):
-        matched = _match_sections(q, sections)
-        contexts = [f"{s.short_name} - {s.label}\n{s.text[:5000]}" for s in matched]
-        try:
-            out = llm.invoke(
-                [
-                    ("system", SEED_ANSWER_SYSTEM),
-                    ("human", "Excerpts:\n\n" + "\n\n---\n\n".join(contexts) + f"\n\nQuestion: {q}"),
-                ]
+    unresolved: list[str] = []
+
+    for i, entry in enumerate(seeds):
+        q = entry["q"] if isinstance(entry, dict) else str(entry)
+        category = entry.get("category", "lookup") if isinstance(entry, dict) else "lookup"
+
+        if category == "negative":
+            items.append(
+                TestItem(
+                    id=f"seed-{i:03d}",
+                    user_input=q,
+                    reference=ABSTENTION_REFERENCE,
+                    reference_contexts=[],
+                    origin="seed",
+                    category=category,
+                    needs_review=False,
+                )
             )
-            reference = _json_from(out.content)["reference"].strip()
-        except Exception as exc:  # noqa: BLE001
-            print(f"    skip seed {i}: {exc}")
             continue
-        if reference.upper().startswith("INSUFFICIENT"):
-            print(f"    seed {i} unanswerable from matched sections - flagged: {q[:60]}")
+
+        reference, matched = "", []
+        for k in (8, 16):
+            matched = _match_sections(q, sections, k=k)
+            contexts = [f"{s.short_name} - {s.label}\n{s.text[:4000]}" for s in matched]
+            try:
+                out = llm.invoke(
+                    [
+                        ("system", SEED_ANSWER_SYSTEM),
+                        (
+                            "human",
+                            "Excerpts:\n\n"
+                            + "\n\n---\n\n".join(contexts)
+                            + f"\n\nQuestion: {q}",
+                        ),
+                    ]
+                )
+                candidate = _json_from(out.content)["reference"].strip()
+            except Exception as exc:  # noqa: BLE001
+                print(f"    seed {i} ({category}) call failed at k={k}: {exc}")
+                continue
+            if not candidate.upper().startswith("INSUFFICIENT"):
+                reference = candidate
+                break
+
+        if not reference:
+            unresolved.append(f"[{category}] {q}")
             continue
+
         items.append(
             TestItem(
                 id=f"seed-{i:03d}",
                 user_input=q,
                 reference=reference,
-                reference_contexts=contexts,
+                reference_contexts=[
+                    f"{s.short_name} - {s.label}\n{s.text[:4000]}" for s in matched
+                ],
                 origin="seed",
+                category=category,
                 section_ids=[s.id for s in matched],
                 needs_review=True,
             )
         )
+
+    if unresolved:
+        print(f"\n    {len(unresolved)} seed questions could not be grounded even at k=16:")
+        for u in unresolved:
+            print(f"      - {u[:100]}")
+        print("    These are dropped. If many are multi_hop/cross_reg, the matcher needs work.")
     return items
 
 

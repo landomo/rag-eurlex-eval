@@ -133,6 +133,7 @@ def collect_predictions(pipeline: RagPipeline, testset: list[TestItem], verbose:
                 "reference": item.reference,
                 "_id": item.id,
                 "_origin": item.origin,
+                "_category": getattr(item, "category", "generated"),
                 "_citations": result.citations,
             }
         )
