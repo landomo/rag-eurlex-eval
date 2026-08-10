@@ -1,0 +1,173 @@
+{
+  "run_id": "recursive_1000__dense",
+  "n_samples": 5,
+  "seconds": 13.0,
+  "models": {
+    "llm_provider": "anthropic",
+    "generator": "claude-haiku-4-5-20251001",
+    "judge": "claude-haiku-4-5-20251001",
+    "embed_provider": "local",
+    "embedding": "BAAI/bge-small-en-v1.5"
+  },
+  "aggregate": {
+    "faithfulness": 0.8886,
+    "answer_relevancy": NaN,
+    "llm_context_precision_with_reference": 0.6567,
+    "context_recall": 0.75,
+    "factual_correctness(mode=f1)": 0.584,
+    "noise_sensitivity(mode=relevant)": 0.3045
+  },
+  "samples": [
+    {
+      "user_input": "What is the definition of an \"AI system\" under the EU AI Act?",
+      "retrieved_contexts": [
+        "Article 3\n\nDefinitions\n\nFor the purposes of this Regulation, the following definitions apply:\n\n(1)\n\n‘AI system’ means a machine-based system that is designed to operate with varying levels of autonomy and that may exhibit adaptiveness after deployment, and that, for explicit or implicit objectives, infers, from the input it receives, how to generate outputs such as predictions, content, recommendations, or decisions that can influence physical or virtual environments;\n\n(2)\n\n‘risk’ means the combination of the probability of an occurrence of harm and the severity of that harm;\n\n(3)\n\n‘provider’ means a natural or legal person, public authority, agency or other body that develops an AI system or a general-purpose AI model or that has an AI system or a general-purpose AI model developed and places it on the market or puts the AI system into service under its own name or trademark, whether for payment or free of charge;\n\n(4)",
+        "(119)\n\nConsidering the quick pace of innovation and the technological evolution of digital services in scope of different instruments of Union law in particular having in mind the usage and the perception of their recipients, the AI systems subject to this Regulation may be provided as intermediary services or parts thereof within the meaning of Regulation (EU) 2022/2065, which should be interpreted in a technology-neutral manner. For example, AI systems may be used to provide online search engines, in particular, to the extent that an AI system such as an online chatbot performs searches of, in principle, all websites, then incorporates the results into its existing knowledge and uses the updated knowledge to generate a single output that combines different sources of information.\n\n(120)",
+        ";\n\n(4)\n\nin Article 47, the following paragraph is added:\n\n‘3. When adopting delegated acts pursuant to paragraphs 1 and 2 concerning Artificial Intelligence systems which are safety components within the meaning of Regulation (EU) 2024/1689, the requirements set out in Chapter III, Section 2, of that Regulation shall be taken into account.’\n\n;\n\n(5)\n\nin Article 57, the following subparagraph is added:\n\n‘When adopting those implementing acts concerning Artificial Intelligence systems which are safety components within the meaning of Regulation (EU) 2024/1689, the requirements set out in Chapter III, Section 2, of that Regulation shall be taken into account.’\n;\n\n(6)\n\nin Article 58, the following paragraph is added:",
+        "Whereas:\n\n(1)\n\nThe purpose of this Regulation is to improve the functioning of the internal market by laying down a uniform legal framework in particular for the development, the placing on the market, the putting into service and the use of artificial intelligence systems (AI systems) in the Union, in accordance with Union values, to promote the uptake of human centric and trustworthy artificial intelligence (AI) while ensuring a high level of protection of health, safety, fundamental rights as enshrined in the Charter of Fundamental Rights of the European Union (the ‘Charter’), including democracy, the rule of law and environmental protection, to protect against the harmful effects of AI systems in the Union, and to support innovation. This Regulation ensures the free movement, cross-border, of AI-based goods and services, thus preventing Member States from imposing restrictions on the development, marketing and use of AI systems, unless explicitly authorised by this Regulation.",
+        "CHAPTER VIII\n\nEU DATABASE FOR HIGH-RISK AI SYSTEMS"
+      ],
+      "response": "According to the EU AI Act, Article 3(1), an **'AI system' means a machine-based system that is designed to operate with varying levels of autonomy and that may exhibit adaptiveness after deployment, and that, for explicit or implicit objectives, infers, from the input it receives, how to generate outputs such as predictions, content, recommendations, or decisions that can influence physical or virtual environments.**\n\n(EU AI Act, Article 3(1))",
+      "reference": "According to Article 3(1) of the EU AI Act, an 'AI system' means a machine-based system that is designed to operate with varying levels of autonomy and that may exhibit adaptiveness after deployment, and that, for explicit or implicit objectives, infers, from the input it receives, how to generate outputs such as predictions, content, recommendations, or decisions that can influence physical or virtual environments.",
+      "_id": "seed-000",
+      "_origin": "seed",
+      "_citations": [
+        "EU AI Act, Article 3",
+        "EU AI Act, unlabelled",
+        "EU AI Act, Article 47",
+        "EU AI Act, unlabelled",
+        "EU AI Act, unlabelled"
+      ],
+      "_scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": null,
+        "llm_context_precision_with_reference": 0.9999999999,
+        "context_recall": 1.0,
+        "factual_correctness(mode=f1)": 1.0,
+        "noise_sensitivity(mode=relevant)": 0.0
+      }
+    },
+    {
+      "user_input": "What is the lawful basis of \"legitimate interests\" under the GDPR and when can it be relied on?",
+      "retrieved_contexts": [
+        "The legitimate interests of a controller, including those of a controller to which the personal data may be disclosed, or of a third party, may provide a legal basis for processing, provided that the interests or the fundamental rights and freedoms of the data subject are not overriding, taking into consideration the reasonable expectations of data subjects based on their relationship with the controller. Such legitimate interest could exist for example where there is a relevant and appropriate relationship between the data subject and the controller in situations such as where the data subject is a client or in the service of the controller. At any rate the existence of a legitimate interest would need careful assessment including whether a data subject can reasonably expect at the time and in the context of the collection of the personal data that processing for that purpose may take place",
+        ". The interests and fundamental rights of the data subject could in particular override the interest of the data controller where personal data are processed in circumstances where data subjects do not reasonably expect further processing. Given that it is for the legislator to provide by law for the legal basis for public authorities to process personal data, that legal basis should not apply to the processing by public authorities in the performance of their tasks. The processing of personal data strictly necessary for the purposes of preventing fraud also constitutes a legitimate interest of the data controller concerned. The processing of personal data for direct marketing purposes may be regarded as carried out for a legitimate interest.",
+        "(69)\n\nWhere personal data might lawfully be processed because processing is necessary for the performance of a task carried out in the public interest or in the exercise of official authority vested in the controller, or on grounds of the legitimate interests of a controller or a third party, a data subject should, nevertheless, be entitled to object to the processing of any personal data relating to his or her particular situation. It should be for the controller to demonstrate that its compelling legitimate interest overrides the interests or the fundamental rights and freedoms of the data subject.\n\n(70)",
+        "(46)\n\nThe processing of personal data should also be regarded to be lawful where it is necessary to protect an interest which is essential for the life of the data subject or that of another natural person. Processing of personal data based on the vital interest of another natural person should in principle take place only where the processing cannot be manifestly based on another legal basis. Some types of processing may serve both important grounds of public interest and the vital interests of the data subject as for instance when processing is necessary for humanitarian purposes, including for monitoring epidemics and their spread or in situations of humanitarian emergencies, in particular in situations of natural and man-made disasters.\n\n(47)",
+        "(40)\n\nIn order for processing to be lawful, personal data should be processed on the basis of the consent of the data subject concerned or some other legitimate basis, laid down by law, either in this Regulation or in other Union or Member State law as referred to in this Regulation, including the necessity for compliance with the legal obligation to which the controller is subject or the necessity for the performance of a contract to which the data subject is party or in order to take steps at the request of the data subject prior to entering into a contract.\n\n(41)"
+      ],
+      "response": "# Lawful Basis of \"Legitimate Interests\" Under the GDPR\n\n## Definition and Conditions\n\nThe legitimate interests of a controller, including those of a third party, may provide a legal basis for processing personal data, provided that **the interests or the fundamental rights and freedoms of the data subject are not overriding** (GDPR, Recital 40).\n\n## When It Can Be Relied On\n\nLegitimate interest can be relied on when:\n\n1. **Reasonable expectation exists**: There is a relevant and appropriate relationship between the data subject and the controller (such as where the data subject is a client or in the service of the controller), and the data subject can reasonably expect at the time and in the context of collection that processing for that purpose may take place (GDPR, Recital 40).\n\n2. **Specific examples** include:\n   - Processing strictly necessary for preventing fraud (GDPR, Recital 40)\n   - Processing for direct marketing purposes (GDPR, Recital 40)\n\n## Limitations\n\n- **Data subject objection**: A data subject is entitled to object to processing based on legitimate interests. The controller must then **demonstrate that its compelling legitimate interest overrides the interests or fundamental rights and freedoms of the data subject** (GDPR, Recital 69).\n\n- **Overriding interests**: The interests and fundamental rights of the data subject override the controller's legitimate interest, particularly where data subjects do not reasonably expect further processing (GDPR, Recital 40).",
+      "reference": "Article 6(1)(f) establishes 'legitimate interests' as a lawful basis for processing. It states that processing shall be lawful if 'processing is necessary for the purposes of the legitimate interests pursued by the controller or by a third party, except where such interests are overridden by the interests or fundamental rights and freedoms of the data subject which require protection of personal data, in particular where the data subject is a child.' Additionally, Article 6(1)(f) specifies that this basis 'shall not apply to processing carried out by public authorities in the performance of their tasks.' Article 6(4) provides guidance on assessing compatibility when processing for a different purpose, requiring consideration of: (a) any link between the original and intended purposes; (b) the context of collection; (c) the nature of the personal data; (d) possible consequences for data subjects; and (e) the existence of appropriate safeguards such as encryption or pseudonymisation.",
+      "_id": "seed-002",
+      "_origin": "seed",
+      "_citations": [
+        "GDPR, unlabelled",
+        "GDPR, unlabelled",
+        "GDPR, unlabelled",
+        "GDPR, unlabelled",
+        "GDPR, unlabelled"
+      ],
+      "_scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": null,
+        "llm_context_precision_with_reference": 0.49999999995,
+        "context_recall": 0.25,
+        "factual_correctness(mode=f1)": 0.21,
+        "noise_sensitivity(mode=relevant)": 0.8181818181818182
+      }
+    },
+    {
+      "user_input": "Within what time period must a personal data breach be notified to the supervisory authority?",
+      "retrieved_contexts": [
+        "Article 33\n\nNotification of a personal data breach to the supervisory authority\n\n1. In the case of a personal data breach, the controller shall without undue delay and, where feasible, not later than 72 hours after having become aware of it, notify the personal data breach to the supervisory authority competent in accordance with Article 55, unless the personal data breach is unlikely to result in a risk to the rights and freedoms of natural persons. Where the notification to the supervisory authority is not made within 72 hours, it shall be accompanied by reasons for the delay.\n\n2. The processor shall notify the controller without undue delay after becoming aware of a personal data breach.\n\n3. The notification referred to in paragraph 1 shall at least:\n\n(a)\n\ndescribe the nature of the personal data breach including where possible, the categories and approximate number of data subjects concerned and the categories and approximate number of personal data records concerned;\n\n(b)",
+        "(87)\n\nIt should be ascertained whether all appropriate technological protection and organisational measures have been implemented to establish immediately whether a personal data breach has taken place and to inform promptly the supervisory authority and the data subject. The fact that the notification was made without undue delay should be established taking into account in particular the nature and gravity of the personal data breach and its consequences and adverse effects for the data subject. Such notification may result in an intervention of the supervisory authority in accordance with its tasks and powers laid down in this Regulation.\n\n(88)",
+        "A personal data breach may, if not addressed in an appropriate and timely manner, result in physical, material or non-material damage to natural persons such as loss of control over their personal data or limitation of their rights, discrimination, identity theft or fraud, financial loss, unauthorised reversal of pseudonymisation, damage to reputation, loss of confidentiality of personal data protected by professional secrecy or any other significant economic or social disadvantage to the natural person concerned. Therefore, as soon as the controller becomes aware that a personal data breach has occurred, the controller should notify the personal data breach to the supervisory authority without undue delay and, where feasible, not later than 72 hours after having become aware of it, unless the controller is able to demonstrate, in accordance with the accountability principle, that the personal data breach is unlikely to result in a risk to the rights and freedoms of natural persons",
+        "4. If the controller has not already communicated the personal data breach to the data subject, the supervisory authority, having considered the likelihood of the personal data breach resulting in a high risk, may require it to do so or may decide that any of the conditions referred to in paragraph 3 are met.\n\nSection 3\n\nData protection impact assessment and prior consultation",
+        "(b)\n\ncommunicate the name and contact details of the data protection officer or other contact point where more information can be obtained;\n\n(c)\n\ndescribe the likely consequences of the personal data breach;\n\n(d)\n\ndescribe the measures taken or proposed to be taken by the controller to address the personal data breach, including, where appropriate, measures to mitigate its possible adverse effects.\n\n4. Where, and in so far as, it is not possible to provide the information at the same time, the information may be provided in phases without undue further delay.\n\n5. The controller shall document any personal data breaches, comprising the facts relating to the personal data breach, its effects and the remedial action taken. That documentation shall enable the supervisory authority to verify compliance with this Article."
+      ],
+      "response": "According to GDPR Article 33(1), a personal data breach must be notified to the supervisory authority **without undue delay and, where feasible, not later than 72 hours after the controller has become aware of it**.\n\nHowever, this obligation does not apply if the personal data breach is unlikely to result in a risk to the rights and freedoms of natural persons. If notification is not made within the 72-hour period, the notification must be accompanied by reasons for the delay (GDPR, Article 33(1)).",
+      "reference": "According to GDPR Article 33(1), a personal data breach must be notified to the supervisory authority 'without undue delay and, where feasible, not later than 72 hours after having become aware of it', unless the personal data breach is unlikely to result in a risk to the rights and freedoms of natural persons. Where notification is not made within 72 hours, it must be accompanied by reasons for the delay.",
+      "_id": "seed-003",
+      "_origin": "seed",
+      "_citations": [
+        "GDPR, Article 33",
+        "GDPR, unlabelled",
+        "GDPR, unlabelled",
+        "GDPR, unlabelled",
+        "GDPR, unlabelled"
+      ],
+      "_scores": {
+        "faithfulness": 1.0,
+        "answer_relevancy": null,
+        "llm_context_precision_with_reference": 0.8333333332916666,
+        "context_recall": 1.0,
+        "factual_correctness(mode=f1)": 1.0,
+        "noise_sensitivity(mode=relevant)": 0.0
+      }
+    },
+    {
+      "user_input": "What are the maximum administrative fines under the GDPR?",
+      "retrieved_contexts": [
+        "(g)\n\nthe annual budget of the Union institution, body, office or agency.\n\n2. Non-compliance with the prohibition of the AI practices referred to in Article 5 shall be subject to administrative fines of up to EUR 1 500 000.\n\n3. The non-compliance of the AI system with any requirements or obligations under this Regulation, other than those laid down in Article 5, shall be subject to administrative fines of up to EUR 750 000.\n\n4. Before taking decisions pursuant to this Article, the European Data Protection Supervisor shall give the Union institution, body, office or agency which is the subject of the proceedings conducted by the European Data Protection Supervisor the opportunity of being heard on the matter regarding the possible infringement. The European Data Protection Supervisor shall base his or her decisions only on elements and circumstances on which the parties concerned have been able to comment. Complainants, if any, shall be associated closely with the proceedings.",
+        "4. Infringements of the following provisions shall, in accordance with paragraph 2, be subject to administrative fines up to 10 000 000 EUR, or in the case of an undertaking, up to 2 % of the total worldwide annual turnover of the preceding financial year, whichever is higher:\n\n(a)\n\nthe obligations of the controller and the processor pursuant to Articles 8, 11, 25 to 39 and 42 and 43;\n\n(b)\n\nthe obligations of the certification body pursuant to Articles 42 and 43;\n\n(c)\n\nthe obligations of the monitoring body pursuant to Article 41(4).\n\n5. Infringements of the following provisions shall, in accordance with paragraph 2, be subject to administrative fines up to 20 000 000 EUR, or in the case of an undertaking, up to 4 % of the total worldwide annual turnover of the preceding financial year, whichever is higher:\n\n(a)\n\nthe basic principles for processing, including conditions for consent, pursuant to Articles 5, 6, 7 and 9;\n\n(b)\n\nthe data subjects' rights pursuant to Articles 12 to 22;",
+        "Article 100\n\nAdministrative fines on Union institutions, bodies, offices and agencies\n\n1. The European Data Protection Supervisor may impose administrative fines on Union institutions, bodies, offices and agencies falling within the scope of this Regulation. When deciding whether to impose an administrative fine and when deciding on the amount of the administrative fine in each individual case, all relevant circumstances of the specific situation shall be taken into account and due regard shall be given to the following:\n\n(a)\n\nthe nature, gravity and duration of the infringement and of its consequences, taking into account the purpose of the AI system concerned, as well as, where appropriate, the number of affected persons and the level of damage suffered by them;\n\n(b)\n\nthe degree of responsibility of the Union institution, body, office or agency, taking into account technical and organisational measures implemented by them;\n\n(c)",
+        "3. Non-compliance with the prohibition of the AI practices referred to in Article 5 shall be subject to administrative fines of up to EUR 35 000 000 or, if the offender is an undertaking, up to 7 % of its total worldwide annual turnover for the preceding financial year, whichever is higher.\n\n4. Non-compliance with any of the following provisions related to operators or notified bodies, other than those laid down in Articles 5, shall be subject to administrative fines of up to EUR 15 000 000 or, if the offender is an undertaking, up to 3 % of its total worldwide annual turnover for the preceding financial year, whichever is higher:\n\n(a)\n\nobligations of providers pursuant to Article 16;\n\n(b)\n\nobligations of authorised representatives pursuant to Article 22;\n\n(c)\n\nobligations of importers pursuant to Article 23;\n\n(d)\n\nobligations of distributors pursuant to Article 24;\n\n(e)\n\nobligations of deployers pursuant to Article 26;\n\n(f)",
+        "(b)\n\nthe data subjects' rights pursuant to Articles 12 to 22;\n\n(c)\n\nthe transfers of personal data to a recipient in a third country or an international organisation pursuant to Articles 44 to 49;\n\n(d)\n\nany obligations pursuant to Member State law adopted under Chapter IX;\n\n(e)\n\nnon-compliance with an order or a temporary or definitive limitation on processing or the suspension of data flows by the supervisory authority pursuant to Article 58(2) or failure to provide access in violation of Article 58(1).\n\n6. Non-compliance with an order by the supervisory authority as referred to in Article 58(2) shall, in accordance with paragraph 2 of this Article, be subject to administrative fines up to 20 000 000 EUR, or in the case of an undertaking, up to 4 % of the total worldwide annual turnover of the preceding financial year, whichever is higher."
+      ],
+      "response": "Under the GDPR, the maximum administrative fines are:\n\n1. **Up to EUR 10,000,000 or 2% of total worldwide annual turnover** (whichever is higher) for infringements of obligations of controllers and processors pursuant to Articles 8, 11, 25-39, 42-43, and obligations of certification and monitoring bodies (GDPR, Article 41(4)).\n\n2. **Up to EUR 20,000,000 or 4% of total worldwide annual turnover** (whichever is higher) for infringements of basic principles for processing (Articles 5, 6, 7, 9) and data subjects' rights (Articles 12-22) (GDPR, Article 41(5)).\n\n3. **Up to EUR 20,000,000 or 4% of total worldwide annual turnover** (whichever is higher) for non-compliance with orders by the supervisory authority (GDPR, Article 58(6)).",
+      "reference": "GDPR Article 83(4), (5), and (6): The maximum administrative fines under the GDPR are: (1) up to EUR 10,000,000 or up to 2% of total worldwide annual turnover of the preceding financial year, whichever is higher, for infringements of Articles 8, 11, 25-39, 42-43, and obligations of certification and monitoring bodies (Article 83(4)); (2) up to EUR 20,000,000 or up to 4% of total worldwide annual turnover of the preceding financial year, whichever is higher, for infringements of basic principles for processing, data subjects' rights, transfers of personal data to third countries, and non-compliance with supervisory authority orders (Article 83(5) and (6)).",
+      "_id": "seed-004",
+      "_origin": "seed",
+      "_citations": [
+        "EU AI Act, Article 5",
+        "GDPR, Article 41",
+        "EU AI Act, Article 100",
+        "EU AI Act, Article 5",
+        "GDPR, Article 58"
+      ],
+      "_scores": {
+        "faithfulness": 0.8181818181818182,
+        "answer_relevancy": null,
+        "llm_context_precision_with_reference": 0.4499999999775,
+        "context_recall": 1.0,
+        "factual_correctness(mode=f1)": 0.27,
+        "noise_sensitivity(mode=relevant)": 0.45454545454545453
+      }
+    },
+    {
+      "user_input": "What are the penalties for non-compliance with the prohibited AI practices in the AI Act?",
+      "retrieved_contexts": [
+        ". AI systems entailing such unacceptable scoring practices and leading to such detrimental or unfavourable outcomes should therefore be prohibited. That prohibition should not affect lawful evaluation practices of natural persons that are carried out for a specific purpose in accordance with Union and national law.",
+        "3. Non-compliance with the prohibition of the AI practices referred to in Article 5 shall be subject to administrative fines of up to EUR 35 000 000 or, if the offender is an undertaking, up to 7 % of its total worldwide annual turnover for the preceding financial year, whichever is higher.\n\n4. Non-compliance with any of the following provisions related to operators or notified bodies, other than those laid down in Articles 5, shall be subject to administrative fines of up to EUR 15 000 000 or, if the offender is an undertaking, up to 3 % of its total worldwide annual turnover for the preceding financial year, whichever is higher:\n\n(a)\n\nobligations of providers pursuant to Article 16;\n\n(b)\n\nobligations of authorised representatives pursuant to Article 22;\n\n(c)\n\nobligations of importers pursuant to Article 23;\n\n(d)\n\nobligations of distributors pursuant to Article 24;\n\n(e)\n\nobligations of deployers pursuant to Article 26;\n\n(f)",
+        "(g)\n\nthe annual budget of the Union institution, body, office or agency.\n\n2. Non-compliance with the prohibition of the AI practices referred to in Article 5 shall be subject to administrative fines of up to EUR 1 500 000.\n\n3. The non-compliance of the AI system with any requirements or obligations under this Regulation, other than those laid down in Article 5, shall be subject to administrative fines of up to EUR 750 000.\n\n4. Before taking decisions pursuant to this Article, the European Data Protection Supervisor shall give the Union institution, body, office or agency which is the subject of the proceedings conducted by the European Data Protection Supervisor the opportunity of being heard on the matter regarding the possible infringement. The European Data Protection Supervisor shall base his or her decisions only on elements and circumstances on which the parties concerned have been able to comment. Complainants, if any, shall be associated closely with the proceedings.",
+        "Article 5\n\nProhibited AI practices\n\n1. The following AI practices shall be prohibited:\n\n(a)\n\nthe placing on the market, the putting into service or the use of an AI system that deploys subliminal techniques beyond a person’s consciousness or purposefully manipulative or deceptive techniques, with the objective, or the effect of materially distorting the behaviour of a person or a group of persons by appreciably impairing their ability to make an informed decision, thereby causing them to take a decision that they would not have otherwise taken in a manner that causes or is reasonably likely to cause that person, another person or group of persons significant harm;\n\n(b)",
+        "3. Where the market surveillance authority considers that the use of the AI system concerned is not restricted to its national territory, it shall inform the Commission and the other Member States without undue delay of the results of the evaluation and of the actions which it has required the provider to take.\n\n4. The provider shall ensure that all necessary action is taken to bring the AI system into compliance with the requirements and obligations laid down in this Regulation. Where the provider of an AI system concerned does not bring the AI system into compliance with those requirements and obligations within the period referred to in paragraph 2 of this Article, the provider shall be subject to fines in accordance with Article 99.\n\n5. The provider shall ensure that all appropriate corrective action is taken in respect of all the AI systems concerned that it has made available on the Union market."
+      ],
+      "response": "According to the EU AI Act, the penalties for non-compliance with the prohibited AI practices in Article 5 depend on whether the offender is a Union institution or a private undertaking:\n\n**For private undertakings and other offenders:**\nAdministrative fines of up to EUR 35,000,000 or, if the offender is an undertaking, up to 7% of its total worldwide annual turnover for the preceding financial year, whichever is higher. (EU AI Act, Article 5(3))\n\n**For Union institutions, bodies, offices or agencies:**\nAdministrative fines of up to EUR 1,500,000. (EU AI Act, Article 5(2))",
+      "reference": "According to Article 99(3) of the EU AI Act, non-compliance with the prohibition of the AI practices referred to in Article 5 shall be subject to administrative fines of up to EUR 35,000,000 or, if the offender is an undertaking, up to 7% of its total worldwide annual turnover for the preceding financial year, whichever is higher. Article 99(6) specifies that for SMEs, including start-ups, each fine shall be up to the percentages or amount referred to in paragraph 3, whichever is lower.",
+      "_id": "seed-005",
+      "_origin": "seed",
+      "_citations": [
+        "EU AI Act, unlabelled",
+        "EU AI Act, Article 5",
+        "EU AI Act, Article 5",
+        "EU AI Act, Article 5",
+        "EU AI Act, Article 99"
+      ],
+      "_scores": {
+        "faithfulness": 0.625,
+        "answer_relevancy": null,
+        "llm_context_precision_with_reference": 0.49999999995,
+        "context_recall": 0.5,
+        "factual_correctness(mode=f1)": 0.44,
+        "noise_sensitivity(mode=relevant)": 0.25
+      }
+    }
+  ],
+  "spec": {
+    "chunker": "recursive_1000",
+    "mode": "dense",
+    "rerank": false,
+    "top_k": 5
+  }
+}

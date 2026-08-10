@@ -13,7 +13,19 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--n-generated", type=int, default=45)
     ap.add_argument("--no-seed", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="regenerate even if a testset already exists (costs money, "
+                         "and invalidates comparability with existing runs)")
     args = ap.parse_args()
+
+    if TESTSET_PATH.exists() and not args.force:
+        n = sum(1 for _ in TESTSET_PATH.open())
+        raise SystemExit(
+            f"A gold set already exists ({n} items at {TESTSET_PATH.relative_to(ROOT)}).\n"
+            "Regenerating costs API calls AND produces different questions, which would\n"
+            "make new runs incomparable with the ones already in results/runs/.\n"
+            "Pass --force if that is really what you want."
+        )
 
     sections = load_sections()
     items = []

@@ -118,6 +118,15 @@ class RunSpec:
     def run_id(self) -> str:
         return f"{self.chunker}__{self.mode}{'__rerank' if self.rerank else ''}"
 
+    def run_key(self, n_questions: int) -> str:
+        """Cache key INCLUDING the question count.
+
+        Without n, a `--limit 5` smoke run writes the same filename as the full
+        run, the full run skips it as cached, and the results table silently
+        reports 5-question scores as if they were the whole gold set.
+        """
+        return f"{self.run_id}__n{n_questions}"
+
 
 def default_grid() -> list[RunSpec]:
     """4 chunkers x 2 retrieval modes. Reranking is added separately, on the winner."""

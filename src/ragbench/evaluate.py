@@ -31,7 +31,27 @@ from .pipeline import RagPipeline
 from .testset import TestItem
 
 
-def build_metrics(judge_llm=None, judge_embeddings=None):
+# Approximate judge LLM calls per sample, measured against Ragas 0.3.9 internals.
+# Used only to warn you what a run will cost before it starts.
+METRIC_CALL_COST = {
+    "faithfulness": 2,
+    "llm_context_precision_with_reference": 5,   # one call per retrieved chunk
+    "context_recall": 1,
+    "answer_relevancy": 3,                       # strictness=3
+    "factual_correctness": 2,
+    "noise_sensitivity": 5,                      # one call per retrieved chunk
+}
+
+# "core" is the defensible minimum: one generation-side metric and both
+# retrieval-side metrics. It is ~2.5x cheaper than "full" and covers every
+# claim the experiment actually makes.
+METRIC_SETS = {
+    "core": ["faithfulness", "llm_context_precision_with_reference", "context_recall"],
+    "full": list(METRIC_CALL_COST),
+}
+
+
+def build_metrics(which: str = "core", llm=None):
     from ragas.metrics import (
         FactualCorrectness,
         Faithfulness,
@@ -41,27 +61,64 @@ def build_metrics(judge_llm=None, judge_embeddings=None):
         ResponseRelevancy,
     )
 
-    return [
-        Faithfulness(),
-        ResponseRelevancy(),
-        LLMContextPrecisionWithReference(),
-        LLMContextRecall(),
-        FactualCorrectness(),
-        NoiseSensitivity(),
-    ]
+    by_name = {
+        "faithfulness": Faithfulness,
+        "answer_relevancy": ResponseRelevancy,
+        "llm_context_precision_with_reference": LLMContextPrecisionWithReference,
+        "context_recall": LLMContextRecall,
+        "factual_correctness": FactualCorrectness,
+        "noise_sensitivity": NoiseSensitivity,
+    }
+    if which not in METRIC_SETS:
+        raise SystemExit(f"Unknown metric set {which!r}. Options: {list(METRIC_SETS)}")
+    # Attach the judge explicitly rather than relying on evaluate() to inject it,
+    # which matters for the Instructor-backed LLM.
+    return [by_name[n](llm=llm) if llm is not None else by_name[n]() for n in METRIC_SETS[which]]
+
+
+def estimate_calls(metric_set: str, n_questions: int, n_configs: int) -> dict:
+    per_sample = sum(METRIC_CALL_COST[m] for m in METRIC_SETS[metric_set])
+    judge = per_sample * n_questions * n_configs
+    gen = n_questions * n_configs
+    return {"generation_calls": gen, "judge_calls": judge, "total": gen + judge}
 
 
 def judge_components():
-    """The judge is identical across every run, so judge bias is a constant, not a confound."""
+    """The judge is identical across every run, so judge bias is a constant, not a confound.
+
+    Backend matters. The LangChain wrapper asks the model for JSON and parses the
+    text; with Claude that failed to parse on 100% of answer_relevancy samples,
+    silently yielding NaN. The Instructor backend enforces the schema through
+    tool-calling instead. Set RAGBENCH_JUDGE_BACKEND=langchain to compare.
+    """
+    import os
+
     from ragas.embeddings import LangchainEmbeddingsWrapper
+
+    from .config import MODELS
+    from .providers import get_embeddings
+
+    backend = os.getenv("RAGBENCH_JUDGE_BACKEND", "instructor").lower()
+    emb = LangchainEmbeddingsWrapper(get_embeddings())
+
+    if backend == "instructor" and MODELS.llm_provider in {"anthropic", "openai"}:
+        from ragas.llms import llm_factory
+
+        if MODELS.llm_provider == "anthropic":
+            import anthropic
+
+            client = anthropic.Anthropic()
+        else:
+            import openai
+
+            client = openai.OpenAI()
+        return llm_factory(MODELS.judge, provider=MODELS.llm_provider, client=client), emb
+
     from ragas.llms import LangchainLLMWrapper
 
-    from .providers import get_chat_llm, get_embeddings
+    from .providers import get_chat_llm
 
-    return (
-        LangchainLLMWrapper(get_chat_llm("judge", temperature=0.0)),
-        LangchainEmbeddingsWrapper(get_embeddings()),
-    )
+    return LangchainLLMWrapper(get_chat_llm("judge", temperature=0.0)), emb
 
 
 def collect_predictions(pipeline: RagPipeline, testset: list[TestItem], verbose: bool = True) -> list[dict]:
@@ -84,7 +141,8 @@ def collect_predictions(pipeline: RagPipeline, testset: list[TestItem], verbose:
     return rows
 
 
-def score(rows: list[dict], run_id: str, seconds: float | None = None) -> dict:
+def score(rows: list[dict], run_id: str, seconds: float | None = None,
+          metric_set: str = "core") -> dict:
     from ragas import EvaluationDataset, evaluate
     from ragas.run_config import RunConfig
 
@@ -96,7 +154,7 @@ def score(rows: list[dict], run_id: str, seconds: float | None = None) -> dict:
 
     result = evaluate(
         dataset=dataset,
-        metrics=build_metrics(),
+        metrics=build_metrics(metric_set, llm=llm),
         llm=llm,
         embeddings=emb,
         run_config=RunConfig(max_workers=8, timeout=180, max_retries=5),
@@ -119,6 +177,7 @@ def score(rows: list[dict], run_id: str, seconds: float | None = None) -> dict:
 
     return {
         "run_id": run_id,
+        "metric_set": metric_set,
         "n_samples": len(rows),
         "seconds": round(seconds, 1) if seconds else None,
         "models": describe(),
@@ -148,20 +207,26 @@ def save_run(payload: dict) -> Path:
     return p
 
 
-def evaluate_spec(spec: RunSpec, testset: list[TestItem], skip_existing: bool = True) -> dict:
+def evaluate_spec(
+    spec: RunSpec,
+    testset: list[TestItem],
+    skip_existing: bool = True,
+    metric_set: str = "core",
+) -> dict:
     from .retrieval import build_retriever
 
-    if skip_existing and already_done(spec.run_id):
-        print(f"  = {spec.run_id}: cached, skipping")
-        return json.loads(run_path(spec.run_id).read_text(encoding="utf-8"))
+    key = spec.run_key(len(testset))
+    if skip_existing and already_done(key):
+        print(f"  = {key}: cached, skipping")
+        return json.loads(run_path(key).read_text(encoding="utf-8"))
 
-    print(f"  > {spec.run_id}")
+    print(f"  > {key}")
     t0 = time.time()
     retriever = build_retriever(
         spec.chunker, mode=spec.mode, top_k=spec.top_k, rerank=spec.rerank
     )
     rows = collect_predictions(RagPipeline(retriever), testset)
-    payload = score(rows, spec.run_id, seconds=time.time() - t0)
+    payload = score(rows, key, seconds=time.time() - t0, metric_set=metric_set)
     payload["spec"] = asdict(spec)
     save_run(payload)
     agg = payload["aggregate"]

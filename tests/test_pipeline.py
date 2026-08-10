@@ -227,3 +227,27 @@ def test_unknown_provider_is_rejected(monkeypatch):
     importlib.reload(providers)
     with pytest.raises(SystemExit):
         providers.get_chat_llm("generator")
+
+
+def test_run_key_includes_question_count():
+    """A --limit smoke run must not occupy the full run's cache slot.
+
+    This exact collision silently produced a results table built from 5-question
+    runs while claiming to be the full gold set.
+    """
+    from ragbench.config import RunSpec
+
+    spec = RunSpec("structural_article", "hybrid")
+    assert spec.run_key(5) != spec.run_key(57)
+    assert "n5" in spec.run_key(5) and "n57" in spec.run_key(57)
+    assert RunSpec("a", "dense").run_key(10) != RunSpec("a", "dense", rerank=True).run_key(10)
+
+
+def test_metric_sets_are_coherent():
+    from ragbench.evaluate import METRIC_CALL_COST, METRIC_SETS, estimate_calls
+
+    assert set(METRIC_SETS["core"]) < set(METRIC_SETS["full"])
+    assert all(m in METRIC_CALL_COST for m in METRIC_SETS["full"])
+    cheap = estimate_calls("core", 57, 9)["total"]
+    dear = estimate_calls("full", 57, 9)["total"]
+    assert cheap < dear
