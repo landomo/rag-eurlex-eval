@@ -85,6 +85,31 @@ def by_category() -> pd.DataFrame | None:
 
 def build_report() -> str:
     df = load_runs()
+
+    # Runs on different gold-set sizes are NOT comparable - different questions,
+    # different difficulty. Group them rather than ranking them against each other.
+    if df["n"].nunique() > 1:
+        groups = sorted(df["n"].unique(), reverse=True)
+        parts = ["# Results", "",
+                 "Runs are grouped by gold-set size. **Scores from different groups are "
+                 "not comparable** - they were measured on different questions.", ""]
+        for n in groups:
+            sub = df[df["n"] == n].copy()
+            sub["Composite"] = composite(sub)
+            sub = sub.sort_values("Composite", ascending=False)
+            cols = [c for c in dict.fromkeys(METRIC_LABELS.values()) if c in sub.columns]
+            parts += [f"## Gold set: {n} questions", "",
+                      sub[["chunker", "retrieval", "rerank"] + cols].to_markdown(
+                          index=False, floatfmt=".3f"), ""]
+        df.to_csv(RESULTS / "summary.csv", index=False)
+        cat = by_category()
+        if cat is not None and not cat.empty:
+            cat.to_csv(RESULTS / "by_category.csv", index=False)
+            parts += ["## Per-category breakdown", "",
+                      cat.to_markdown(index=False, floatfmt=".3f"), ""]
+        parts += ["See `docs/EVALUATION.md` for the analysis, caveats and cost breakdown.", ""]
+        return "\n".join(parts)
+
     df["Composite"] = composite(df)
     df = df.sort_values("Composite", ascending=False).reset_index(drop=True)
     df.to_csv(RESULTS / "summary.csv", index=False)

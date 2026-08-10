@@ -1,14 +1,18 @@
 # rag-eurlex-eval
 
 A retrieval-augmented generation system over EU regulatory text (the **AI Act** and the
-**GDPR**), built as a controlled experiment rather than a demo. Nine pipeline
-configurations are evaluated on a shared gold set with [Ragas](https://docs.ragas.io),
-so every design choice — chunking strategy, dense vs. hybrid retrieval, cross-encoder
-reranking — is backed by a number instead of an opinion.
+**GDPR**), built as a controlled experiment rather than a demo and evaluated with
+[Ragas](https://docs.ragas.io).
 
-> **Status:** the harness is complete and tested. The results table below is empty until
-> you run the grid yourself — see [Reproducing the results](#reproducing-the-results).
-> Nothing in this repo reports a number that wasn't measured.
+Two hypotheses were tested under controlled conditions. **Both came back negative**, and
+one earlier result had to be thrown out after a defect was found in the retrieval
+configuration that had produced it. The interesting content of this repo is therefore the
+measurement discipline — what was validated before it was trusted, what was discarded, and
+what it all cost — rather than a table of wins.
+
+> **Status:** evaluated. Two controlled comparisons were run on a ~$13 budget; the full
+> 4×2 grid was not affordable and is not claimed. Every number below was measured.
+> Full analysis, caveats and cost breakdown: **[docs/EVALUATION.md](docs/EVALUATION.md)**.
 
 ---
 
@@ -81,13 +85,24 @@ the codebase imports an SDK directly, and there are tests asserting that.
 
 ## Experiment design
 
-**Stage 1** — full factorial: 4 chunking strategies × 2 retrieval modes = 8 runs.
-**Stage 2** — cross-encoder reranking applied to the Stage 1 winner = 1 run.
+**Designed:** full factorial, 4 chunking strategies × 2 retrieval modes = 8 runs, plus
+cross-encoder reranking on the winner.
 
-Everything except the variable under test is frozen: same gold set, same generator,
-same judge, same `top_k=5`, temperature 0 throughout. Reranking over-retrieves
-`fetch_k=20` and compresses back to 5, so the generator's context budget is unchanged
-and any delta is attributable to *ordering*, not to seeing more text.
+**Actually run:** two controlled comparisons (chunk size; retrieval mode). The full grid
+cost ~$13 to evaluate and the budget did not stretch. Each comparison varies one factor
+with everything else frozen, so each is internally valid — but they use different gold
+sets and do not compose into a grid. See [docs/EVALUATION.md](docs/EVALUATION.md) for
+what that does and does not license.
+
+Everything except the variable under test is frozen: same gold set, same generator, same
+judge, same `top_k=5`, temperature 0 throughout. Both retrieval arms are truncated to
+exactly k — without that, `EnsembleRetriever` returns the union of both retrievers and
+hybrid silently receives more context than dense, which is what invalidated the first
+hybrid result.
+
+One confound survives and is reported rather than hidden: holding **k** constant is not
+the same as holding **context budget** constant, so comparing chunkers at fixed k partly
+measures chunk size. Comparison A is affected by this.
 
 ### The gold set
 
@@ -122,27 +137,64 @@ that retrieves 20 chunks will look faithful and score terribly on precision.
 
 ## Results
 
-<!-- Paste results/RESULTS.md here after running the grid. -->
+Two controlled comparisons, each varying one factor. **They use different gold sets and
+are not comparable to each other.** Full analysis in [docs/EVALUATION.md](docs/EVALUATION.md).
 
-_Not yet run._ Execute `make all` and paste the generated `results/RESULTS.md` table
-here. `results/summary.csv` holds the same data machine-readably, and
-`results/runs/*.json` keeps every per-question score for error analysis.
+### A — chunk size, dense retrieval, 70 questions
 
-| chunker | retrieval | rerank | Faithfulness | Answer Relevancy | Context Precision | Context Recall | Factual Correctness | Noise Sensitivity |
-|---|---|---|---|---|---|---|---|---|
-| _fill from results/RESULTS.md_ | | | | | | | | |
+| chunker | mean chunk | faithfulness | ctx precision | ctx recall | factual correctness |
+|---|---|---|---|---|---|
+| `fixed_512` | 2,735 chars | 0.915 | **0.552** | **0.712** | 0.434 |
+| `recursive_1000` | 676 chars | **0.965** | 0.355 | 0.528 | 0.426 |
 
-**Questions worth answering in this section once you have numbers:**
+At fixed k, **chunk size dominates retrieval scores**. `fixed_512` wins recall by +0.184
+not because its boundaries are better — it is structure-blind token windowing — but
+because five large chunks deliver 4× more text than five small ones. Anyone comparing
+chunkers at fixed k is partly measuring chunk size. Faithfulness moves the other way:
+less context, fewer chances to make unsupported claims.
 
-1. Which chunker won on **context recall**, and by how much over the `fixed_512` baseline?
-2. Did hybrid beat dense, and was the gain concentrated in the lexical-category questions?
-3. Did reranking move **context precision** without costing recall?
-4. On the negative questions, how often did the system correctly abstain?
+### B — retrieval mode, structural chunking, 27 hand-written questions
 
-Point 4 is the one interviewers remember, and `results/runs/*.json` contains the
-per-question responses needed to compute it.
+| retrieval | faithfulness | ctx precision | ctx recall |
+|---|---|---|---|
+| dense | 0.942 | **0.519** | **0.703** |
+| hybrid (BM25 + dense) | **0.960** | 0.485 | 0.665 |
 
----
+**Hybrid did not beat dense** given an equal context budget, and lost hardest on the
+`lexical` questions built for it to win (recall 0.333 vs 0.544, n=3). This contradicts the
+hypothesis the project was built to test.
+
+An earlier run showed hybrid winning by +0.118 recall. It was discarded:
+`EnsembleRetriever` returns the *union* of both retrievers, so hybrid was fed 8.3 chunks
+against dense's 5 — scoring higher for retrieving more. A second defect was found by
+arithmetic: with RRF weights 0.4/0.6 and `c=60`, BM25's best result (0.4/61) scores below
+dense's fifth (0.6/65), so after truncation hybrid returns *exactly* the dense results and
+the experiment compares a configuration against itself. Both are fixed and asserted in tests.
+
+### Also measured
+
+- Abstention: **2/2** on deliberately unanswerable questions, both configurations.
+- `cross_reg` context precision is **0.25–0.27** everywhere — cross-regulation questions
+  are the pipeline's clear weakness, and nothing tested fixes it.
+- `answer_relevancy` returns NaN on **100%** of samples with a Claude judge and is
+  excluded from every metric set — see [docs/METRIC_SUPPORT.md](docs/METRIC_SUPPORT.md).
+
+### Not measured
+
+`semantic` chunking, cross-encoder reranking, and `structural_article` against the other
+chunkers. The budget ran out; these are absent rather than assumed.
+
+### Cost
+
+| | cost |
+|---|---|
+| Serving one answer | **$0.0043** |
+| Evaluating that same answer (`core`, 8 judge calls) | **$0.0224** |
+
+**Evaluation costs 5.3× the answer it grades**, multiplied by every configuration.
+`context_precision` alone spends one judge call per retrieved chunk. Serving 1,000 real
+users would cost less than measuring six configurations once. Breakdown, levers and the
+23% error in my own estimate: [docs/EVALUATION.md](docs/EVALUATION.md#5-cost-analysis).
 
 ## Reproducing the results
 
@@ -154,7 +206,12 @@ cp .env.example .env              # add ANTHROPIC_API_KEY — that is the only k
 make ingest                       # download + segment the AI Act and GDPR
 make index                        # chunk 4 ways, embed locally, build Chroma collections
 make testset                      # build the gold set (LLM-assisted)
-make run                          # the 9-run grid
+
+.venv/bin/python scripts/06_check_testset.py             # free: validate the gold set
+.venv/bin/python scripts/00_diagnose_metrics.py          # ~$0.02: validate the metrics
+.venv/bin/python scripts/07_estimate_cost.py --budget 5  # price the plan in dollars
+
+.venv/bin/python scripts/04_run_experiments.py --metrics core --origin seed
 make report                       # → results/RESULTS.md
 ```
 
@@ -225,27 +282,23 @@ imports cleanly; `requirements.txt` pins it with a comment explaining why.
 
 ## Known limitations
 
-- **Single judge model.** All metrics come from one Claude model. LLM-as-judge scores are
-  noisy and correlated with the judge's own biases. The provider abstraction makes the
-  check cheap — re-run the winning configuration with `RAGBENCH_JUDGE_MODEL` set to a
-  larger Claude model, or flip `RAGBENCH_LLM_PROVIDER=openai`, and report the agreement.
-  Until that is done, treat the ordering as more trustworthy than the absolute values.
-- **Structured output from the judge.** Ragas metrics parse JSON out of the judge. Claude
-  is reliable at this but not infallible; `evaluate()` runs with `raise_exceptions=False`,
-  so a failed parse yields `NaN` for that sample rather than killing the run. Check
-  `n_samples` against the NaN count in `results/runs/*.json` before quoting a metric.
-- **No confidence intervals.** Each configuration is evaluated once. Bootstrapping over
-  the per-question scores in `results/runs/*.json` would give error bars and is a
-  worthwhile next step — several of the deltas may not survive them.
-- **Reference answers are LLM-drafted.** They are grounded in source Articles rather than
-  the retrieval system, but they are not lawyer-reviewed. Treat absolute scores as
-  relative signals, not as legal ground truth.
-- **English only, single snapshot.** Regulations are consolidated documents that change;
-  `data/raw/` caches whatever EUR-Lex served on ingestion day.
-- **No latency benchmarking.** Wall-clock time per run is recorded, but retrieval latency
-  is not isolated from generation.
-
----
+- **Partial grid.** Two controlled comparisons, not a 4×2 ablation. `semantic` chunking,
+  reranking, and `structural_article` versus the other chunkers were never run.
+- **Single run per configuration, no confidence intervals.** The recall gaps in
+  Comparison A are large relative to plausible judge noise; the faithfulness gaps are not,
+  and are flagged as suggestive only in the report.
+- **Small per-category counts.** The `lexical` finding rests on 3 questions and the
+  abstention check on 2. Directional, not conclusive.
+- **Comparison A is confounded by chunk size.** Holding k constant rather than context
+  budget constant means chunker comparisons partly measure chunk length. Diagnosed, not
+  fixed — fixing it requires a re-run.
+- **Single judge model.** All scores come from one Claude model, and LLM-judge scores
+  carry that model's biases. `RAGBENCH_JUDGE_MODEL` and `RAGBENCH_LLM_PROVIDER` make the
+  cross-check a config change; it was not affordable here.
+- **Reference answers are LLM-drafted** from source Articles — grounded, categorised, and
+  spot-checked for correct Article citations, but not lawyer-reviewed.
+- **`answer_relevancy` unavailable** with a Claude judge. Four metrics, not six.
+- **English only, single snapshot** of two consolidated regulations.
 
 ## Repository layout
 

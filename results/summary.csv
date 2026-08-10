@@ -1,0 +1,6 @@
+run_id,chunker,retrieval,rerank,n,seconds,Faithfulness,Context Precision,Context Recall,Factual Correctness
+fixed_512__dense__n70,fixed_512,dense,False,70,230.3,0.9148,0.5518,0.7119,0.4345
+fixed_512__hybrid__n70,fixed_512,hybrid,False,70,245.2,0.8801,0.5774,0.8298,0.5038
+recursive_1000__dense__n70,recursive_1000,dense,False,70,157.3,0.9648,0.3553,0.5282,0.4256
+structural_article__dense__n27,structural_article,dense,False,27,108.6,0.9422,0.5187,0.7032,
+structural_article__hybrid__n27,structural_article,hybrid,False,27,106.6,0.96,0.4852,0.6653,
