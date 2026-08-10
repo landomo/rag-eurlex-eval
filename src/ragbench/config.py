@@ -102,9 +102,19 @@ RERANK_FETCH_K = int(os.getenv("RAGBENCH_RERANK_FETCH_K", "20"))
 CHUNKERS = ["fixed_512", "recursive_1000", "semantic", "structural_article"]
 RETRIEVAL_MODES = ["dense", "hybrid"]
 
-# Hybrid weighting: BM25 first, dense second. Lexical weight is deliberately
-# non-trivial because legal queries carry exact tokens ("Article 22", "DPIA").
-HYBRID_WEIGHTS: tuple[float, float] = (0.4, 0.6)
+# Hybrid weighting: BM25 first, dense second. EQUAL weights, and that is forced
+# by the arithmetic rather than a preference.
+#
+# EnsembleRetriever scores by weighted RRF: weight / (c + rank), with c = 60.
+# At 0.4/0.6, BM25's best result scores 0.4/61 = 0.00656 while dense's *fifth*
+# scores 0.6/65 = 0.00923. Every dense result outranks every BM25 result, so
+# once the output is truncated to k the hybrid arm is identical to the dense arm
+# and the whole comparison measures nothing.
+#
+# At 0.5/0.5, BM25 rank 1 (0.00820) beats dense rank 5 (0.00769) and the lists
+# genuinely interleave - which is the entire point on a corpus where queries
+# carry exact statutory tokens ("Article 22", "DPIA", "pseudonymisation").
+HYBRID_WEIGHTS: tuple[float, float] = (0.5, 0.5)
 
 
 @dataclass(frozen=True)

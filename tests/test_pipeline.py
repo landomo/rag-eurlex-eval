@@ -275,3 +275,38 @@ def test_hedged_refusals_are_detected_not_accepted_as_ground_truth():
         "Article 6 sets out the criteria for high-risk classification, and Article 43 "
         "requires a conformity assessment before placing on the market."
     )
+
+
+def test_hybrid_returns_exactly_k_not_the_union(indexed, monkeypatch):
+    """EnsembleRetriever returns the union of both retrievers' results.
+
+    Unbounded, hybrid handed the generator up to 10 chunks against dense's 5 -
+    so it scored higher on recall partly for retrieving more, not ranking better,
+    and cost proportionally more. Both arms must supply the same context budget.
+    """
+    from ragbench import retrieval
+
+    store, docs = indexed
+    monkeypatch.setattr(retrieval, "load_chunks", lambda s: docs)
+    for k in (2, 3):
+        r = retrieval.build_retriever(
+            "structural_article", mode="hybrid", top_k=k, vectorstore=store
+        )
+        assert len(r.invoke("penalties for prohibited widget practices")) <= k
+
+
+def test_hybrid_weights_allow_bm25_into_the_topk():
+    """Guard the RRF arithmetic, not just the config value.
+
+    EnsembleRetriever scores weight/(c+rank) with c=60. If the lexical weight is
+    low enough that BM25's rank-1 result scores below dense's rank-k result, the
+    hybrid arm silently collapses into the dense arm once truncated to k, and the
+    experiment compares a configuration against itself.
+    """
+    from ragbench.config import HYBRID_WEIGHTS, TOP_K
+
+    c = 60
+    w_bm25, w_dense = HYBRID_WEIGHTS
+    assert w_bm25 / (c + 1) > w_dense / (c + TOP_K), (
+        f"weights {HYBRID_WEIGHTS} make hybrid degenerate to dense at k={TOP_K}"
+    )

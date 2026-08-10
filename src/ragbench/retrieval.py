@@ -12,8 +12,30 @@ from __future__ import annotations
 from langchain_core.embeddings import Embeddings
 from langchain_core.retrievers import BaseRetriever
 
+from pydantic import Field
+
 from .config import HYBRID_WEIGHTS, RERANK_FETCH_K, TOP_K
 from .index import load_chunks, open_index
+
+
+class _TopK(BaseRetriever):
+    """Truncate a retriever's output to k documents.
+
+    EnsembleRetriever fuses ranked lists with RRF but returns the *union*, so with
+    two retrievers at k=5 it can return up to 10 documents. Left unbounded that
+    makes hybrid look better than dense partly because it simply supplies more
+    text to the generator - and costs proportionally more per question. The
+    comparison is only meaningful if both arms hand over the same budget.
+    """
+
+    inner: BaseRetriever = Field(...)
+    k: int = Field(default=TOP_K)
+
+    def _get_relevant_documents(self, query: str, *, run_manager=None):
+        return self.inner.invoke(query)[: self.k]
+
+    async def _aget_relevant_documents(self, query: str, *, run_manager=None):
+        return (await self.inner.ainvoke(query))[: self.k]
 
 
 def build_retriever(
@@ -41,7 +63,10 @@ def build_retriever(
 
         bm25 = BM25Retriever.from_documents(load_chunks(strategy))
         bm25.k = k
-        base = EnsembleRetriever(retrievers=[bm25, dense], weights=list(HYBRID_WEIGHTS))
+        base = _TopK(
+            inner=EnsembleRetriever(retrievers=[bm25, dense], weights=list(HYBRID_WEIGHTS)),
+            k=k,
+        )
 
     if not rerank:
         return base
