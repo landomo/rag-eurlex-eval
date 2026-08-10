@@ -10,6 +10,9 @@ from ragbench.testset import load
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--limit", type=int, default=None, help="evaluate only the first N questions")
+    ap.add_argument("--origin", choices=["all", "seed", "generated"], default="all",
+                    help="restrict the gold set. 'seed' = the hand-written questions only: "
+                         "smaller, higher quality, categorised, and much cheaper to evaluate")
     ap.add_argument("--chunkers", nargs="*", default=None,
                     help="restrict the grid to these chunking strategies")
     ap.add_argument("--rerank", action="store_true",
@@ -30,6 +33,10 @@ if __name__ == "__main__":
 
     print(f"providers: {describe()}")
     testset = load()
+    if args.origin != "all":
+        testset = [t for t in testset if t.origin == args.origin]
+        if not testset:
+            raise SystemExit(f"No gold items with origin={args.origin!r}")
     if args.limit:
         testset = testset[: args.limit]
     print(f"{len(testset)} gold questions\n")
